@@ -1,0 +1,275 @@
+[
+  {
+    "id": "RMA_G6_001",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_NS_INTEGERS",
+    "competencyDescription": "Add and subtract positive and negative integers",
+    "taskLabel": "Integers",
+    "prompt": "What is (-15) + 23?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. -8",
+      "B. 8",
+      "C. -38",
+      "D. 38"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 8",
+      "8"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G6_002",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_OP_PROP_SOLVE",
+    "competencyDescription": "Solve direct proportion problems",
+    "taskLabel": "Proportion",
+    "prompt": "If 4 notebooks cost ₱100, how much do 7 notebooks cost?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. ₱150",
+      "B. ₱175",
+      "C. ₱200",
+      "D. ₱225"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. ₱175",
+      "175",
+      "₱175"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_003",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_OP_DISCOUNT",
+    "competencyDescription": "Solve percentage problems involving discount and sale price",
+    "taskLabel": "Discount Word Problem",
+    "prompt": "A backpack regularly priced at ₱800 is on sale for 25% off. What is the sale price?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. ₱200",
+      "B. ₱550",
+      "C. ₱600",
+      "D. ₱650"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. ₱600",
+      "600",
+      "₱600"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_004",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_AL_EXPR",
+    "competencyDescription": "Evaluate algebraic expressions given variable values",
+    "taskLabel": "Algebraic Expressions",
+    "prompt": "If x = 5 and y = 3, what is the value of 2x + 4y?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 16",
+      "B. 22",
+      "C. 26",
+      "D. 30"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 22",
+      "22"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_005",
+    "grade": 6,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G6_MG_CIRCLE_AREA",
+    "competencyDescription": "Find the area of a circle using radius",
+    "taskLabel": "Area of Circle",
+    "prompt": "What is the area of a circle with a radius of 7 cm? (Use π = 22/7)",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 44 sq cm",
+      "B. 154 sq cm",
+      "C. 308 sq cm",
+      "D. 616 sq cm"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 154 sq cm",
+      "154"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_006",
+    "grade": 6,
+    "strand": "Data and Probability",
+    "competencyCode": "G6_DP_MEAN",
+    "competencyDescription": "Calculate the mean (average) of a set of data",
+    "taskLabel": "Mean / Average",
+    "prompt": "Carlo got scores of 85, 90, 88, and 93 on his four math tests. What is his average score?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 87",
+      "B. 88",
+      "C. 89",
+      "D. 90"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 89",
+      "89"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_007",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_AL_EQUATION",
+    "competencyDescription": "Solve simple linear equations in one variable",
+    "taskLabel": "Linear Equations",
+    "prompt": "Solve for n: 3n - 7 = 14",
+    "type": "multipleChoice",
+    "choices": [
+      "A. n = 5",
+      "B. n = 7",
+      "C. n = 8",
+      "D. n = 21"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. n = 7",
+      "7"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_008",
+    "grade": 6,
+    "strand": "Data and Probability",
+    "competencyCode": "G6_DP_PROB_DICE",
+    "competencyDescription": "Find probability of simple and compound events",
+    "taskLabel": "Probability",
+    "prompt": "When rolling a standard 6-sided die, what is the probability of rolling a number greater than 4?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 1/6",
+      "B. 2/6 (or 1/3)",
+      "C. 3/6 (or 1/2)",
+      "D. 4/6 (or 2/3)"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 2/6 (or 1/3)",
+      "1/3",
+      "2/6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G6_009",
+    "grade": 6,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G6_MG_SURFACE_AREA",
+    "competencyDescription": "Find the surface area of cubes and rectangular prisms",
+    "taskLabel": "Surface Area",
+    "prompt": "What is the surface area of a cube with an edge length of 5 cm?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 25 sq cm",
+      "B. 125 sq cm",
+      "C. 150 sq cm",
+      "D. 175 sq cm"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 150 sq cm",
+      "150"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G6_010",
+    "grade": 6,
+    "strand": "Number and Algebra",
+    "competencyCode": "G6_OP_INTEGERS_SUB",
+    "competencyDescription": "Subtract integers with different signs",
+    "taskLabel": "Integer Subtraction",
+    "prompt": "What is (-12) - (-18)?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. -30",
+      "B. -6",
+      "C. 6",
+      "D. 30"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 6",
+      "6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  }
+]

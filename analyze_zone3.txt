@@ -1,0 +1,36 @@
+Analyzing mathalino_student_app...                              
+
+   info - Don't invoke 'print' in production code. Try using a logging framework - __show.dart:20:5 - avoid_print
+   info - Dangling library doc comment. Add a 'library' directive after the library comment - lib\core\constants\diagnostic_questions.dart:1:1 - dangling_library_doc_comments
+warning - Unused import: '../models/placement_result.dart'. Try removing the import directive - lib\core\services\diagnostic_assessment_service.dart:3:8 - unused_import
+warning - The declaration '_questionToFirestore' isn't referenced. Try removing the declaration of '_questionToFirestore' - lib\core\services\diagnostic_question_service.dart:238:24 - unused_element
+   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this._firestore') to initialize the field - lib\core\services\question_bank_service.dart:19:57 - prefer_initializing_formals
+   info - Dangling library doc comment. Add a 'library' directive after the library comment - lib\core\services\question_repository.dart:1:1 - dangling_library_doc_comments
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre. Try replacing the use of the deprecated member with the replacement - lib\core\theme\app_theme.dart:15:9 - deprecated_member_use
+   info - The parameter name 'sum' matches a visible type name. Try adding a name for the parameter or changing the parameter name to not match an existing type - lib\providers\gameplay_provider.dart:187:10 - avoid_types_as_parameter_names
+   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this._dryRun') to initialize the field - lib\providers\level_provider.dart:75:9 - prefer_initializing_formals
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\forgot_password_page.dart:85:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\forgot_password_page.dart:88:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\login_page.dart:139:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\login_page.dart:141:61 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter. Trying converting 'key' to a super parameter - lib\screens\student\daily_challenge_screen.dart:18:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\student\diagnostic_results_screen.dart:87:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\student\diagnostic_results_screen.dart:180:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\screens\student\diagnostic_results_screen.dart:220:22 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter. Trying converting 'key' to a super parameter - lib\screens\student\gameplay_screen.dart:14:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter. Trying converting 'key' to a super parameter - lib\screens\student\remediation_screen.dart:23:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter. Trying converting 'key' to a super parameter - lib\screens\student\rewards_summary_screen.dart:10:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\animated_logo.dart:75:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\animated_logo.dart:76:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\gamified_loading_spinner.dart:115:23 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter. Trying converting 'key' to a super parameter - lib\widgets\question_card.dart:14:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_card.dart:171:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_illustration.dart:85:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_illustration.dart:138:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_illustration.dart:155:20 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_illustration.dart:163:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_scene_painter.dart:174:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_scene_painter.dart:308:30 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement - lib\widgets\question_scene_painter.dart:396:47 - deprecated_member_use
+
+32 issues found. (ran in 8.4s)

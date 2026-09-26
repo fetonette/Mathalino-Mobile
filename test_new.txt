@@ -1,0 +1,784 @@
+﻿00:00 +0: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart
+flutter : test/game_logic_service_test.dart:142:8: Error: Expected an identifier, but got 
+''Shuffle returns a permutation (same elements, same length)''.
+At line:1 char:71
++ ... udent_app'; flutter test test/game_logic_service_test.dart test/quest ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test/game_logic...same length)''.:String) [],  
+   RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Try inserting an identifier before ''Shuffle returns a permutation (same elements, same 
+length)''.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:142:70: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+                                                                     ^
+test/game_logic_service_test.dart:142:73: Error: Expected ')' before this.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+                                                                        ^
+test/game_logic_service_test.dart:147:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:149:8: Error: Expected an identifier, but got ''Shuffle 
+does not mutate the original array''.
+Try inserting an identifier before ''Shuffle does not mutate the original array''.
+  test('Shuffle does not mutate the original array', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:149:54: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Shuffle does not mutate the original array', () {
+                                                     ^
+test/game_logic_service_test.dart:149:57: Error: Expected ')' before this.
+  test('Shuffle does not mutate the original array', () {
+                                                        ^
+test/game_logic_service_test.dart:154:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:156:8: Error: Expected an identifier, but got ''Shuffle 
+with a fixed seeded RNG is deterministic''.
+Try inserting an identifier before ''Shuffle with a fixed seeded RNG is deterministic''.
+  test('Shuffle with a fixed seeded RNG is deterministic', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:156:60: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Shuffle with a fixed seeded RNG is deterministic', () {
+                                                           ^
+test/game_logic_service_test.dart:156:63: Error: Expected ')' before this.
+  test('Shuffle with a fixed seeded RNG is deterministic', () {
+                                                              ^
+test/game_logic_service_test.dart:161:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:163:8: Error: Expected an identifier, but got ''Shuffle 
+distribution is roughly uniform on position 0''.
+Try inserting an identifier before ''Shuffle distribution is roughly uniform on position 
+0''.
+  test('Shuffle distribution is roughly uniform on position 0', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:163:65: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Shuffle distribution is roughly uniform on position 0', () {
+                                                                ^
+test/game_logic_service_test.dart:163:68: Error: Expected ')' before this.
+  test('Shuffle distribution is roughly uniform on position 0', () {
+                                                                   ^
+test/game_logic_service_test.dart:174:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:179:8: Error: Expected an identifier, but got 
+''selectQuestion never returns a used question when alternatives exist''.
+Try inserting an identifier before ''selectQuestion never returns a used question when 
+alternatives exist''.
+  test('selectQuestion never returns a used question when alternatives exist',
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:180:7: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+      () {
+      ^
+test/game_logic_service_test.dart:180:10: Error: Expected ')' before this.
+      () {
+         ^
+test/game_logic_service_test.dart:186:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:188:8: Error: Expected an identifier, but got 
+''selectQuestion returns only level + required-difficulty questions''.
+Try inserting an identifier before ''selectQuestion returns only level + 
+required-difficulty questions''.
+  test('selectQuestion returns only level + required-difficulty questions',
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:189:7: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+      () {
+      ^
+test/game_logic_service_test.dart:189:10: Error: Expected ')' before this.
+      () {
+         ^
+test/game_logic_service_test.dart:193:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:195:8: Error: Expected an identifier, but got 
+''selectQuestion falls back to reuse only when all questions used''.
+Try inserting an identifier before ''selectQuestion falls back to reuse only when all 
+questions used''.
+  test('selectQuestion falls back to reuse only when all questions used', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:195:75: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('selectQuestion falls back to reuse only when all questions used', () {
+                                                                          ^
+test/game_logic_service_test.dart:195:78: Error: Expected ')' before this.
+  test('selectQuestion falls back to reuse only when all questions used', () {
+                                                                             ^
+test/game_logic_service_test.dart:200:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:202:8: Error: Expected an identifier, but got 
+''selectQuestion returns null for a level with no questions in the bank''.
+Try inserting an identifier before ''selectQuestion returns null for a level with no 
+questions in the bank''.
+  test('selectQuestion returns null for a level with no questions in the bank',
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:203:7: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+      () {
+      ^
+test/game_logic_service_test.dart:203:10: Error: Expected ')' before this.
+      () {
+         ^
+test/game_logic_service_test.dart:207:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:209:8: Error: Expected an identifier, but got ''Repeated 
+selectQuestion calls vary the returned question''.
+Try inserting an identifier before ''Repeated selectQuestion calls vary the returned 
+question''.
+  test('Repeated selectQuestion calls vary the returned question', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:209:68: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Repeated selectQuestion calls vary the returned question', () {
+                                                                   ^
+test/game_logic_service_test.dart:209:71: Error: Expected ')' before this.
+  test('Repeated selectQuestion calls vary the returned question', () {
+                                                                      ^
+test/game_logic_service_test.dart:217:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:221:8: Error: Expected an identifier, but got ''Passing a 
+challenge unlocks the next level''.
+Try inserting an identifier before ''Passing a challenge unlocks the next level''.
+  test('Passing a challenge unlocks the next level', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:221:54: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Passing a challenge unlocks the next level', () {
+                                                     ^
+test/game_logic_service_test.dart:221:57: Error: Expected ')' before this.
+  test('Passing a challenge unlocks the next level', () {
+                                                        ^
+test/game_logic_service_test.dart:225:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:227:8: Error: Expected an identifier, but got ''Failing 
+Level 5 returns learner to Level 1 (prep range [1,2,3,4])''.
+Try inserting an identifier before ''Failing Level 5 returns learner to Level 1 (prep range 
+[1,2,3,4])''.
+  test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:227:77: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+                                                                            ^
+test/game_logic_service_test.dart:227:80: Error: Expected ')' before this.
+  test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+                                                                               ^
+test/game_logic_service_test.dart:232:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:234:8: Error: Expected an identifier, but got ''Failing 
+Level 20 returns learner to Level 16 (prep range [16..19])''.
+Try inserting an identifier before ''Failing Level 20 returns learner to Level 16 (prep 
+range [16..19])''.
+  test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:234:78: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+                                                                             ^
+test/game_logic_service_test.dart:234:81: Error: Expected ')' before this.
+  test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+                                                                                ^
+test/game_logic_service_test.dart:238:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:240:8: Error: Expected an identifier, but got 
+''selectRemediationQuestion picks an unused question in the range''.
+Try inserting an identifier before ''selectRemediationQuestion picks an unused question in 
+the range''.
+  test('selectRemediationQuestion picks an unused question in the range', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:240:75: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('selectRemediationQuestion picks an unused question in the range', () {
+                                                                          ^
+test/game_logic_service_test.dart:240:78: Error: Expected ')' before this.
+  test('selectRemediationQuestion picks an unused question in the range', () {
+                                                                             ^
+test/game_logic_service_test.dart:247:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:249:8: Error: Expected an identifier, but got 
+''selectNewChallengeQuestion never returns the just-failed question''.
+Try inserting an identifier before ''selectNewChallengeQuestion never returns the 
+just-failed question''.
+  test('selectNewChallengeQuestion never returns the just-failed question', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:249:77: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('selectNewChallengeQuestion never returns the just-failed question', () {
+                                                                            ^
+test/game_logic_service_test.dart:249:80: Error: Expected ')' before this.
+  test('selectNewChallengeQuestion never returns the just-failed question', () {
+                                                                               ^
+test/game_logic_service_test.dart:255:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:260:8: Error: Expected an identifier, but got ''Mastery 
+threshold (75%): 3/4 passes, 2/4 fails''.
+Try inserting an identifier before ''Mastery threshold (75%): 3/4 passes, 2/4 fails''.
+  test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:260:58: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+                                                         ^
+test/game_logic_service_test.dart:260:61: Error: Expected ')' before this.
+  test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+                                                            ^
+test/game_logic_service_test.dart:263:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:265:8: Error: Expected an identifier, but got ''Mastery 
+threshold: 0 attempts never counts as mastery''.
+Try inserting an identifier before ''Mastery threshold: 0 attempts never counts as 
+mastery''.
+  test('Mastery threshold: 0 attempts never counts as mastery', () {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/game_logic_service_test.dart:265:65: Error: Expected an identifier, but got '('.
+Try inserting an identifier before '('.
+  test('Mastery threshold: 0 attempts never counts as mastery', () {
+                                                                ^
+test/game_logic_service_test.dart:265:68: Error: Expected ')' before this.
+  test('Mastery threshold: 0 attempts never counts as mastery', () {
+                                                                   ^
+test/game_logic_service_test.dart:267:5: Error: Expected a function body or '=>'.
+Try adding {}.
+  });
+    ^
+test/game_logic_service_test.dart:268:1: Error: Expected a declaration, but got '}'.
+}
+^
+test/game_logic_service_test.dart:6:8: Error: Error when reading 
+'helpers/bank_fixture.dart': The system cannot find the path specified
+import '../helpers/bank_fixture.dart';
+       ^
+test/game_logic_service_test.dart:149:3: Error: 'test' is already declared in this scope.
+  test('Shuffle does not mutate the original array', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:156:3: Error: 'test' is already declared in this scope.
+  test('Shuffle with a fixed seeded RNG is deterministic', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:163:3: Error: 'test' is already declared in this scope.
+  test('Shuffle distribution is roughly uniform on position 0', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:179:3: Error: 'test' is already declared in this scope.
+  test('selectQuestion never returns a used question when alternatives exist',
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:188:3: Error: 'test' is already declared in this scope.
+  test('selectQuestion returns only level + required-difficulty questions',
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:195:3: Error: 'test' is already declared in this scope.
+  test('selectQuestion falls back to reuse only when all questions used', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:202:3: Error: 'test' is already declared in this scope.
+  test('selectQuestion returns null for a level with no questions in the bank',
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:209:3: Error: 'test' is already declared in this scope.
+  test('Repeated selectQuestion calls vary the returned question', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:221:3: Error: 'test' is already declared in this scope.
+  test('Passing a challenge unlocks the next level', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:227:3: Error: 'test' is already declared in this scope.
+  test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:234:3: Error: 'test' is already declared in this scope.
+  test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:240:3: Error: 'test' is already declared in this scope.
+  test('selectRemediationQuestion picks an unused question in the range', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:249:3: Error: 'test' is already declared in this scope.
+  test('selectNewChallengeQuestion never returns the just-failed question', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:260:3: Error: 'test' is already declared in this scope.
+  test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:265:3: Error: 'test' is already declared in this scope.
+  test('Mastery threshold: 0 attempts never counts as mastery', () {
+  ^^^^
+test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+  test('Shuffle returns a permutation (same elements, same length)', () {
+  ^^^^
+test/game_logic_service_test.dart:10:16: Error: Method not found: 'buildBank'.
+  final bank = buildBank();
+               ^^^^^^^^^
+00:00 +0 -1: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart [E]
+  Failed to load "C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart":
+  Compilation failed for testPath=C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: test/game_logic_service_test.dart:142:8: Error: Expected an identifier, but got ''Shuffle returns a permutation (same elements, same length)''.
+  Try inserting an identifier before ''Shuffle returns a permutation (same elements, same length)''.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:142:70: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+                                                                       ^
+  test/game_logic_service_test.dart:142:73: Error: Expected ')' before this.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+                                                                          ^
+  test/game_logic_service_test.dart:147:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:149:8: Error: Expected an identifier, but got ''Shuffle does not mutate the original array''.
+  Try inserting an identifier before ''Shuffle does not mutate the original array''.
+    test('Shuffle does not mutate the original array', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:149:54: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Shuffle does not mutate the original array', () {
+                                                       ^
+  test/game_logic_service_test.dart:149:57: Error: Expected ')' before this.
+    test('Shuffle does not mutate the original array', () {
+                                                          ^
+  test/game_logic_service_test.dart:154:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:156:8: Error: Expected an identifier, but got ''Shuffle with a fixed seeded RNG is deterministic''.
+  Try inserting an identifier before ''Shuffle with a fixed seeded RNG is deterministic''.
+    test('Shuffle with a fixed seeded RNG is deterministic', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:156:60: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Shuffle with a fixed seeded RNG is deterministic', () {
+                                                             ^
+  test/game_logic_service_test.dart:156:63: Error: Expected ')' before this.
+    test('Shuffle with a fixed seeded RNG is deterministic', () {
+                                                                ^
+  test/game_logic_service_test.dart:161:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:163:8: Error: Expected an identifier, but got ''Shuffle distribution is roughly uniform on position 0''.
+  Try inserting an identifier before ''Shuffle distribution is roughly uniform on position 0''.
+    test('Shuffle distribution is roughly uniform on position 0', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:163:65: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Shuffle distribution is roughly uniform on position 0', () {
+                                                                  ^
+  test/game_logic_service_test.dart:163:68: Error: Expected ')' before this.
+    test('Shuffle distribution is roughly uniform on position 0', () {
+                                                                     ^
+  test/game_logic_service_test.dart:174:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:179:8: Error: Expected an identifier, but got ''selectQuestion never returns a used question when alternatives exist''.
+  Try inserting an identifier before ''selectQuestion never returns a used question when alternatives exist''.
+    test('selectQuestion never returns a used question when alternatives exist',
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:180:7: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+        () {
+        ^
+  test/game_logic_service_test.dart:180:10: Error: Expected ')' before this.
+        () {
+           ^
+  test/game_logic_service_test.dart:186:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:188:8: Error: Expected an identifier, but got ''selectQuestion returns only level + required-difficulty questions''.
+  Try inserting an identifier before ''selectQuestion returns only level + required-difficulty questions''.
+    test('selectQuestion returns only level + required-difficulty questions',
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:189:7: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+        () {
+        ^
+  test/game_logic_service_test.dart:189:10: Error: Expected ')' before this.
+        () {
+           ^
+  test/game_logic_service_test.dart:193:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:195:8: Error: Expected an identifier, but got ''selectQuestion falls back to reuse only when all questions used''.
+  Try inserting an identifier before ''selectQuestion falls back to reuse only when all questions used''.
+    test('selectQuestion falls back to reuse only when all questions used', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:195:75: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('selectQuestion falls back to reuse only when all questions used', () {
+                                                                            ^
+  test/game_logic_service_test.dart:195:78: Error: Expected ')' before this.
+    test('selectQuestion falls back to reuse only when all questions used', () {
+                                                                               ^
+  test/game_logic_service_test.dart:200:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:202:8: Error: Expected an identifier, but got ''selectQuestion returns null for a level with no questions in the bank''.
+  Try inserting an identifier before ''selectQuestion returns null for a level with no questions in the bank''.
+    test('selectQuestion returns null for a level with no questions in the bank',
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:203:7: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+        () {
+        ^
+  test/game_logic_service_test.dart:203:10: Error: Expected ')' before this.
+        () {
+           ^
+  test/game_logic_service_test.dart:207:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:209:8: Error: Expected an identifier, but got ''Repeated selectQuestion calls vary the returned question''.
+  Try inserting an identifier before ''Repeated selectQuestion calls vary the returned question''.
+    test('Repeated selectQuestion calls vary the returned question', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:209:68: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Repeated selectQuestion calls vary the returned question', () {
+                                                                     ^
+  test/game_logic_service_test.dart:209:71: Error: Expected ')' before this.
+    test('Repeated selectQuestion calls vary the returned question', () {
+                                                                        ^
+  test/game_logic_service_test.dart:217:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:221:8: Error: Expected an identifier, but got ''Passing a challenge unlocks the next level''.
+  Try inserting an identifier before ''Passing a challenge unlocks the next level''.
+    test('Passing a challenge unlocks the next level', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:221:54: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Passing a challenge unlocks the next level', () {
+                                                       ^
+  test/game_logic_service_test.dart:221:57: Error: Expected ')' before this.
+    test('Passing a challenge unlocks the next level', () {
+                                                          ^
+  test/game_logic_service_test.dart:225:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:227:8: Error: Expected an identifier, but got ''Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])''.
+  Try inserting an identifier before ''Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])''.
+    test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:227:77: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+                                                                              ^
+  test/game_logic_service_test.dart:227:80: Error: Expected ')' before this.
+    test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+                                                                                 ^
+  test/game_logic_service_test.dart:232:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:234:8: Error: Expected an identifier, but got ''Failing Level 20 returns learner to Level 16 (prep range [16..19])''.
+  Try inserting an identifier before ''Failing Level 20 returns learner to Level 16 (prep range [16..19])''.
+    test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:234:78: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+                                                                               ^
+  test/game_logic_service_test.dart:234:81: Error: Expected ')' before this.
+    test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+                                                                                  ^
+  test/game_logic_service_test.dart:238:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:240:8: Error: Expected an identifier, but got ''selectRemediationQuestion picks an unused question in the range''.
+  Try inserting an identifier before ''selectRemediationQuestion picks an unused question in the range''.
+    test('selectRemediationQuestion picks an unused question in the range', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:240:75: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('selectRemediationQuestion picks an unused question in the range', () {
+                                                                            ^
+  test/game_logic_service_test.dart:240:78: Error: Expected ')' before this.
+    test('selectRemediationQuestion picks an unused question in the range', () {
+                                                                               ^
+  test/game_logic_service_test.dart:247:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:249:8: Error: Expected an identifier, but got ''selectNewChallengeQuestion never returns the just-failed question''.
+  Try inserting an identifier before ''selectNewChallengeQuestion never returns the just-failed question''.
+    test('selectNewChallengeQuestion never returns the just-failed question', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:249:77: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('selectNewChallengeQuestion never returns the just-failed question', () {
+                                                                              ^
+  test/game_logic_service_test.dart:249:80: Error: Expected ')' before this.
+    test('selectNewChallengeQuestion never returns the just-failed question', () {
+                                                                                 ^
+  test/game_logic_service_test.dart:255:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:260:8: Error: Expected an identifier, but got ''Mastery threshold (75%): 3/4 passes, 2/4 fails''.
+  Try inserting an identifier before ''Mastery threshold (75%): 3/4 passes, 2/4 fails''.
+    test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:260:58: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+                                                           ^
+  test/game_logic_service_test.dart:260:61: Error: Expected ')' before this.
+    test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+                                                              ^
+  test/game_logic_service_test.dart:263:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:265:8: Error: Expected an identifier, but got ''Mastery threshold: 0 attempts never counts as mastery''.
+  Try inserting an identifier before ''Mastery threshold: 0 attempts never counts as mastery''.
+    test('Mastery threshold: 0 attempts never counts as mastery', () {
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  test/game_logic_service_test.dart:265:65: Error: Expected an identifier, but got '('.
+  Try inserting an identifier before '('.
+    test('Mastery threshold: 0 attempts never counts as mastery', () {
+                                                                  ^
+  test/game_logic_service_test.dart:265:68: Error: Expected ')' before this.
+    test('Mastery threshold: 0 attempts never counts as mastery', () {
+                                                                     ^
+  test/game_logic_service_test.dart:267:5: Error: Expected a function body or '=>'.
+  Try adding {}.
+    });
+      ^
+  test/game_logic_service_test.dart:268:1: Error: Expected a declaration, but got '}'.
+  }
+  ^
+  test/game_logic_service_test.dart:6:8: Error: Error when reading 'helpers/bank_fixture.dart': The system cannot find the path specified
+  import '../helpers/bank_fixture.dart';
+         ^
+  test/game_logic_service_test.dart:149:3: Error: 'test' is already declared in this scope.
+    test('Shuffle does not mutate the original array', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:156:3: Error: 'test' is already declared in this scope.
+    test('Shuffle with a fixed seeded RNG is deterministic', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:163:3: Error: 'test' is already declared in this scope.
+    test('Shuffle distribution is roughly uniform on position 0', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:179:3: Error: 'test' is already declared in this scope.
+    test('selectQuestion never returns a used question when alternatives exist',
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:188:3: Error: 'test' is already declared in this scope.
+    test('selectQuestion returns only level + required-difficulty questions',
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:195:3: Error: 'test' is already declared in this scope.
+    test('selectQuestion falls back to reuse only when all questions used', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:202:3: Error: 'test' is already declared in this scope.
+    test('selectQuestion returns null for a level with no questions in the bank',
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:209:3: Error: 'test' is already declared in this scope.
+    test('Repeated selectQuestion calls vary the returned question', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:221:3: Error: 'test' is already declared in this scope.
+    test('Passing a challenge unlocks the next level', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:227:3: Error: 'test' is already declared in this scope.
+    test('Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:234:3: Error: 'test' is already declared in this scope.
+    test('Failing Level 20 returns learner to Level 16 (prep range [16..19])', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:240:3: Error: 'test' is already declared in this scope.
+    test('selectRemediationQuestion picks an unused question in the range', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:249:3: Error: 'test' is already declared in this scope.
+    test('selectNewChallengeQuestion never returns the just-failed question', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:260:3: Error: 'test' is already declared in this scope.
+    test('Mastery threshold (75%): 3/4 passes, 2/4 fails', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:265:3: Error: 'test' is already declared in this scope.
+    test('Mastery threshold: 0 attempts never counts as mastery', () {
+    ^^^^
+  test/game_logic_service_test.dart:142:3: Context: Previous declaration of 'test'.
+    test('Shuffle returns a permutation (same elements, same length)', () {
+    ^^^^
+  test/game_logic_service_test.dart:10:16: Error: Method not found: 'buildBank'.
+    final bank = buildBank();
+                 ^^^^^^^^^
+  .
+  Error: The Dart compiler exited unexpectedly.
+  package:flutter_tools/src/base/common.dart 34:3  throwToolExit
+  package:flutter_tools/src/compile.dart 1009:11   DefaultResidentCompiler._compile.<fn>
+  dart:async/zone_root.dart 48:47                  _rootRunUnary
+  dart:async/zone.dart 733:19                      _CustomZone.runUnary
+  dart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback
+  dart:async/future_impl.dart 977:13               Future._propagateToListeners
+  dart:async/future_impl.dart 862:9                Future._propagateToListeners
+  dart:async/future_impl.dart 720:5                Future._completeWithValue
+  dart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>
+  dart:async/zone_root.dart 35:13                  _rootRun
+  dart:async/zone.dart 726:19                      _CustomZone.run
+  dart:async/zone.dart 625:7                       _CustomZone.runGuarded
+  dart:async/zone.dart 666:23                      _CustomZone.bindCallbackGuarded.<fn>
+  dart:async/schedule_microtask.dart 40:35         _microtaskLoop
+  dart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop
+  dart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback
+  dart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage
+  
+test/level_provider_test.dart:5:8: Error: Error when reading 'helpers/bank_fixture.dart': 
+The system cannot find the path specified
+import '../helpers/bank_fixture.dart';
+       ^
+test/level_provider_test.dart:9:16: Error: Method not found: 'buildBank'.
+  final bank = buildBank();
+               ^^^^^^^^^
+00:00 +0 -2: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart [E]
+  Failed to load "C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart":
+  Compilation failed for testPath=C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: test/level_provider_test.dart:5:8: Error: Error when reading 'helpers/bank_fixture.dart': The system cannot find the path specified
+  import '../helpers/bank_fixture.dart';
+         ^
+  test/level_provider_test.dart:9:16: Error: Method not found: 'buildBank'.
+    final bank = buildBank();
+                 ^^^^^^^^^
+  .
+00:00 +0 -2: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart [E]
+  Error: The Dart compiler exited unexpectedly.
+  package:flutter_tools/src/base/common.dart 34:3  throwToolExit
+  package:flutter_tools/src/compile.dart 1009:11   DefaultResidentCompiler._compile.<fn>
+  dart:async/zone_root.dart 48:47                  _rootRunUnary
+  dart:async/zone.dart 733:19                      _CustomZone.runUnary
+  dart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback
+  dart:async/future_impl.dart 977:13               Future._propagateToListeners
+  dart:async/future_impl.dart 862:9                Future._propagateToListeners
+  dart:async/future_impl.dart 720:5                Future._completeWithValue
+  dart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>
+  dart:async/zone_root.dart 35:13                  _rootRun
+  dart:async/zone.dart 726:19                      _CustomZone.run
+  dart:async/zone.dart 625:7                       _CustomZone.runGuarded
+  dart:async/zone.dart 666:23                      _CustomZone.bindCallbackGuarded.<fn>
+  dart:async/schedule_microtask.dart 40:35         _microtaskLoop
+  dart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop
+  dart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback
+  dart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage
+  
+00:00 +0 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap round-trips through toMap after fromMap
+00:00 +1 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap fromMap derives the doc id and applies defaults when sparse
+00:00 +2 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap fromMap tolerates a list-shaped choices field
+00:00 +3 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect matches by choice key (case-insensitive)
+00:00 +4 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect matches by the correct choice value
+00:00 +5 -2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect rejects null/empty answers
+00:00 +6 -2: Some tests failed.
+
+Failing tests:
+  C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart
+  C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart

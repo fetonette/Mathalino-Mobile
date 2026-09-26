@@ -1,0 +1,271 @@
+[
+  {
+    "id": "RMA_G4_001",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_NS_LARGE",
+    "competencyDescription": "Read and write numbers up to 100 000",
+    "taskLabel": "Large Numbers",
+    "prompt": "What is thirty-four thousand, five hundred six in standard numeral form?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 34 560",
+      "B. 34 506",
+      "C. 340 506",
+      "D. 34 056"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 34 506",
+      "34 506"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G4_002",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_OP_MUL_3DIGIT",
+    "competencyDescription": "Multiply 2- to 3-digit number by a 1-digit number",
+    "taskLabel": "Multiplication",
+    "prompt": "Multiply: 316 × 7",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 2 194",
+      "B. 2 202",
+      "C. 2 212",
+      "D. 2 282"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 2 212",
+      "2 212",
+      "2212"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G4_003",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_NS_FACTORS",
+    "competencyDescription": "Find common factors and greatest common factor (GCF)",
+    "taskLabel": "Factors and GCF",
+    "prompt": "What is the Greatest Common Factor (GCF) of 12 and 18?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 2",
+      "B. 3",
+      "C. 6",
+      "D. 36"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 6",
+      "6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G4_004",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_NS_FRAC_SIMILAR",
+    "competencyDescription": "Add and subtract similar fractions",
+    "taskLabel": "Fractions",
+    "prompt": "Mariz has one loaf of bread. She gives 3/8 of the loaf to her friend. What part of the bread does Mariz have left?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 2/8",
+      "B. 3/8",
+      "C. 5/8",
+      "D. 6/8"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 5/8",
+      "5/8"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G4_005",
+    "grade": 4,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G4_MG_ANGLES",
+    "competencyDescription": "Identify right, acute, and obtuse angles",
+    "taskLabel": "Angles",
+    "prompt": "An angle that measures exactly 90 degrees is called a/an:",
+    "type": "multipleChoice",
+    "choices": [
+      "A. Acute angle",
+      "B. Right angle",
+      "C. Obtuse angle",
+      "D. Straight angle"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. Right angle"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G4_006",
+    "grade": 4,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G4_MG_AREA_RECT",
+    "competencyDescription": "Find the area of squares and rectangles",
+    "taskLabel": "Area",
+    "prompt": "What is the area of a square garden with each side measuring 9 meters?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 18 sq m",
+      "B. 36 sq m",
+      "C. 81 sq m",
+      "D. 90 sq m"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 81 sq m",
+      "81"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G4_007",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_OP_PROP",
+    "competencyDescription": "Apply commutative property of multiplication",
+    "taskLabel": "Properties of Operations",
+    "prompt": "If N is any number, which expression gives the same value as 8 × N?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 8 + N",
+      "B. 8 - N",
+      "C. N × 8",
+      "D. N ÷ 8"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. N × 8"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G4_008",
+    "grade": 4,
+    "strand": "Data and Probability",
+    "competencyCode": "G4_DP_FREQ",
+    "competencyDescription": "Interpret data in simple frequency tables",
+    "taskLabel": "Data Table",
+    "prompt": "In 10 coin tosses, the results were: Head, Head, Tail, Tail, Head, Tail, Tail, Head, Head, Head. How many times did Head occur?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 4",
+      "B. 5",
+      "C. 6",
+      "D. 7"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 6",
+      "6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G4_009",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_NS_DECIMAL",
+    "competencyDescription": "Convert fractions to decimals",
+    "taskLabel": "Decimals",
+    "prompt": "What is 7/10 expressed as a decimal?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 0.07",
+      "B. 0.7",
+      "C. 7.0",
+      "D. 0.77"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 0.7",
+      "0.7"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G4_010",
+    "grade": 4,
+    "strand": "Number and Algebra",
+    "competencyCode": "G4_OP_DIV_LONG",
+    "competencyDescription": "Divide 3-digit numbers by 1-digit numbers with remainder",
+    "taskLabel": "Division",
+    "prompt": "What is 125 ÷ 4?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 31 r 1",
+      "B. 31 r 2",
+      "C. 30 r 5",
+      "D. 32 r 1"
+    ],
+    "acceptableAnswers": [
+      "A",
+      "A. 31 r 1",
+      "31 r 1"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  }
+]

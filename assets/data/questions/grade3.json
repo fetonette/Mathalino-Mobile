@@ -1,0 +1,273 @@
+[
+  {
+    "id": "RMA_G3_001",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_NS_PLACE",
+    "competencyDescription": "Identify place value in 4-digit numbers",
+    "taskLabel": "Place Value",
+    "prompt": "In the number 4 729, what is the value of the digit 7?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 7",
+      "B. 70",
+      "C. 700",
+      "D. 7 000"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 700",
+      "700"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G3_002",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_OP_MUL_TABLE",
+    "competencyDescription": "Multiply numbers using multiplication tables",
+    "taskLabel": "Multiplication",
+    "prompt": "What is 8 × 7?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 54",
+      "B. 56",
+      "C. 62",
+      "D. 64"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 56",
+      "56"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G3_003",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_OP_DIV",
+    "competencyDescription": "Divide 2-digit numbers by 1-digit numbers",
+    "taskLabel": "Division",
+    "prompt": "What is 72 ÷ 8?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 7",
+      "B. 8",
+      "C. 9",
+      "D. 10"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 9",
+      "9"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G3_004",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_NS_FRAC",
+    "competencyDescription": "Identify fractions as parts of a whole",
+    "taskLabel": "Fractions",
+    "prompt": "A cake is divided into 6 equal slices. Joy ate 2 slices. What fraction of the cake did Joy eat?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 1/6",
+      "B. 2/6",
+      "C. 4/6",
+      "D. 6/2"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 2/6",
+      "2/6",
+      "1/3"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G3_005",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_OP_ADD_REG",
+    "competencyDescription": "Add 3-digit numbers with regrouping",
+    "taskLabel": "Addition with Regrouping",
+    "prompt": "What is 456 + 378?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 824",
+      "B. 834",
+      "C. 844",
+      "D. 734"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 834",
+      "834"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G3_006",
+    "grade": 3,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G3_MG_PERIM",
+    "competencyDescription": "Calculate perimeter of polygons",
+    "taskLabel": "Perimeter",
+    "prompt": "A rectangle has a length of 8 cm and a width of 5 cm. What is its perimeter?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 13 cm",
+      "B. 26 cm",
+      "C. 40 cm",
+      "D. 48 cm"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 26 cm",
+      "26"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G3_007",
+    "grade": 3,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G3_MG_TIME",
+    "competencyDescription": "Calculate elapsed time in minutes",
+    "taskLabel": "Time Elapsed",
+    "prompt": "A movie started at 2:15 PM and ended at 3:00 PM. How long was the movie?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 30 minutes",
+      "B. 45 minutes",
+      "C. 50 minutes",
+      "D. 1 hour"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 45 minutes",
+      "45"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G3_008",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_NS_ROUND",
+    "competencyDescription": "Round numbers to the nearest hundred",
+    "taskLabel": "Rounding Numbers",
+    "prompt": "Round 478 to the nearest hundred.",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 400",
+      "B. 470",
+      "C. 480",
+      "D. 500"
+    ],
+    "acceptableAnswers": [
+      "D",
+      "D. 500",
+      "500"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G3_009",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_OP_MUL_2DIGIT",
+    "competencyDescription": "Multiply 2-digit numbers by 1-digit numbers",
+    "taskLabel": "Multiplication",
+    "prompt": "What is 34 × 6?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 184",
+      "B. 194",
+      "C. 204",
+      "D. 214"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 204",
+      "204"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G3_010",
+    "grade": 3,
+    "strand": "Number and Algebra",
+    "competencyCode": "G3_OP_WORD",
+    "competencyDescription": "Solve two-step word problems involving addition and subtraction",
+    "taskLabel": "Two-Step Word Problem",
+    "prompt": "Mang Pedro harvested 120 mangoes. He sold 85 mangoes and gave 15 to his neighbors. How many mangoes were left?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 15",
+      "B. 20",
+      "C. 25",
+      "D. 35"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 20",
+      "20"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "analyzing"
+    ]
+  }
+]

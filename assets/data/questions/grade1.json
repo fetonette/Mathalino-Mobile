@@ -1,0 +1,269 @@
+[
+  {
+    "id": "RMA_G1_001",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_COUNT",
+    "competencyDescription": "Count objects up to 10 and identify the quantity",
+    "taskLabel": "Number Identification",
+    "prompt": "How many apples are there? 🍎🍎🍎🍎🍎🍎",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 4",
+      "B. 5",
+      "C. 6",
+      "D. 7"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 6",
+      "6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G1_002",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_MORE",
+    "competencyDescription": "Identify the number that is 1 more than a given number",
+    "taskLabel": "Number Relations",
+    "prompt": "What number is one more than 9?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 8",
+      "B. 10",
+      "C. 11",
+      "D. 12"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 10",
+      "10"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G1_003",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_LESS",
+    "competencyDescription": "Identify the number that is 1 less than a given number",
+    "taskLabel": "Number Relations",
+    "prompt": "What number is one less than 9?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 7",
+      "B. 8",
+      "C. 9",
+      "D. 10"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 8",
+      "8"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G1_004",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_ORDER",
+    "competencyDescription": "Order numbers from least to greatest up to 20",
+    "taskLabel": "Ordering Numbers",
+    "prompt": "Which set of numbers is arranged from least to greatest?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 3, 9, 8, 12",
+      "B. 3, 8, 9, 12",
+      "C. 12, 9, 8, 3",
+      "D. 8, 3, 9, 12"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 3, 8, 9, 12"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G1_005",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_OP_ADD",
+    "competencyDescription": "Add single-digit numbers with sums up to 10",
+    "taskLabel": "Basic Addition",
+    "prompt": "What is 4 + 3?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 6",
+      "B. 7",
+      "C. 8",
+      "D. 9"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 7",
+      "7"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G1_006",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_OP_SUB",
+    "competencyDescription": "Subtract single-digit numbers from 10 or less",
+    "taskLabel": "Basic Subtraction",
+    "prompt": "What is 8 - 5?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 2",
+      "B. 3",
+      "C. 4",
+      "D. 5"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 3",
+      "3"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G1_007",
+    "grade": 1,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G1_MG_SHAPES",
+    "competencyDescription": "Identify 2D geometric shapes",
+    "taskLabel": "Geometry",
+    "prompt": "Which shape has 3 sides and 3 corners?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. Circle",
+      "B. Square",
+      "C. Triangle",
+      "D. Rectangle"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. Triangle"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G1_008",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_COMP",
+    "competencyDescription": "Compare numbers using greater than, less than",
+    "taskLabel": "Comparison",
+    "prompt": "Which comparison is correct?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 7 is greater than 9",
+      "B. 12 is less than 8",
+      "C. 15 is greater than 10",
+      "D. 6 is equal to 16"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 15 is greater than 10"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G1_009",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_NS_TENS",
+    "competencyDescription": "Count by tens up to 100",
+    "taskLabel": "Skip Counting",
+    "prompt": "What number comes next? 10, 20, 30, 40, ___",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 45",
+      "B. 50",
+      "C. 55",
+      "D. 60"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 50",
+      "50"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G1_010",
+    "grade": 1,
+    "strand": "Number and Algebra",
+    "competencyCode": "G1_OP_WORD",
+    "competencyDescription": "Solve simple addition word problems",
+    "taskLabel": "Word Problem",
+    "prompt": "Lito has 4 pencils. His mother gives him 2 more. How many pencils does Lito have in all?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 5",
+      "B. 6",
+      "C. 7",
+      "D. 8"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 6",
+      "6"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  }
+]

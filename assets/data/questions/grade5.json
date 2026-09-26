@@ -1,0 +1,273 @@
+[
+  {
+    "id": "RMA_G5_001",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_NS_DIVISIBILITY",
+    "competencyDescription": "Use divisibility rules for 2, 3, 5, and 10",
+    "taskLabel": "Divisibility",
+    "prompt": "Which of the following numbers is divisible by both 3 and 5?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 25",
+      "B. 35",
+      "C. 45",
+      "D. 50"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 45",
+      "45"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G5_002",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_OP_FRAC_ADD",
+    "competencyDescription": "Add dissimilar fractions",
+    "taskLabel": "Fractions Addition",
+    "prompt": "What is 1/3 + 2/5?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 3/8",
+      "B. 11/15",
+      "C. 7/15",
+      "D. 3/15"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 11/15",
+      "11/15"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_003",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_OP_DEC_MUL",
+    "competencyDescription": "Multiply decimals up to 2 decimal places",
+    "taskLabel": "Decimals Multiplication",
+    "prompt": "What is 2.5 × 1.4?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 3.5",
+      "B. 3.55",
+      "C. 3.7",
+      "D. 3.9"
+    ],
+    "acceptableAnswers": [
+      "A",
+      "A. 3.5",
+      "3.5"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_004",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_NS_RATIO",
+    "competencyDescription": "Express relationship between two quantities as a ratio",
+    "taskLabel": "Ratio",
+    "prompt": "In a class there are 15 boys and 20 girls. What is the ratio of boys to girls in simplest form?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 4 : 3",
+      "B. 3 : 4",
+      "C. 3 : 7",
+      "D. 15 : 20"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 3 : 4",
+      "3:4",
+      "3 : 4"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G5_005",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_NS_PERCENT",
+    "competencyDescription": "Find the percentage of a given number",
+    "taskLabel": "Percentage",
+    "prompt": "What is 20% of 150?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 25",
+      "B. 30",
+      "C. 35",
+      "D. 40"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 30",
+      "30"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_006",
+    "grade": 5,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G5_MG_AREA_TRI",
+    "competencyDescription": "Calculate area of triangles",
+    "taskLabel": "Area of Triangle",
+    "prompt": "Find the area of a triangle with a base of 12 cm and a height of 8 cm.",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 20 sq cm",
+      "B. 48 sq cm",
+      "C. 96 sq cm",
+      "D. 100 sq cm"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 48 sq cm",
+      "48"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_007",
+    "grade": 5,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G5_MG_VOL_PRISM",
+    "competencyDescription": "Calculate volume of rectangular prisms",
+    "taskLabel": "Volume",
+    "prompt": "What is the volume of a box that is 6 cm long, 4 cm wide, and 3 cm high?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 13 cu cm",
+      "B. 36 cu cm",
+      "C. 72 cu cm",
+      "D. 144 cu cm"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 72 cu cm",
+      "72"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_008",
+    "grade": 5,
+    "strand": "Data and Probability",
+    "competencyCode": "G5_DP_PROB",
+    "competencyDescription": "Calculate theoretical probability of simple events",
+    "taskLabel": "Probability",
+    "prompt": "There are 3 red marbles, 2 blue marbles, and 5 green marbles in a box. If Aldrin picks one marble at random, what is the probability of picking a blue marble?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 2/10 (or 1/5)",
+      "B. 3/10",
+      "C. 5/10 (or 1/2)",
+      "D. 2/5"
+    ],
+    "acceptableAnswers": [
+      "A",
+      "A. 2/10 (or 1/5)",
+      "1/5",
+      "2/10"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G5_009",
+    "grade": 5,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G5_MG_POLYGON",
+    "competencyDescription": "Identify properties of regular polygons",
+    "taskLabel": "Polygons",
+    "prompt": "A regular polygon with 5 equal sides and 5 equal angles is called a:",
+    "type": "multipleChoice",
+    "choices": [
+      "A. Hexagon",
+      "B. Pentagon",
+      "C. Octagon",
+      "D. Quadrilateral"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. Pentagon"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G5_010",
+    "grade": 5,
+    "strand": "Number and Algebra",
+    "competencyCode": "G5_OP_ORDER_OPS",
+    "competencyDescription": "Perform series of operations using PMDAS rule",
+    "taskLabel": "Order of Operations",
+    "prompt": "Evaluate: 18 - 3 × 4 + 6 ÷ 2",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 9",
+      "B. 12",
+      "C. 15",
+      "D. 33"
+    ],
+    "acceptableAnswers": [
+      "A",
+      "A. 9",
+      "9"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  }
+]

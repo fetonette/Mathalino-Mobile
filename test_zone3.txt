@@ -1,0 +1,75 @@
+00:00 +0: loading C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart
+00:00 +0: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Hard levels are exactly 5,10,15,45,50,55 (Zone 2 gates removed)
+00:00 +1: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Super Hardcore levels are exactly [20] (Level 40 demoted per Intermediate spec)
+00:00 +2: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Level 60 is Final Boss (not Hard, despite 60 % 5 == 0)
+00:00 +3: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Levels 21-39 are all "Moderate"
+00:00 +4: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Level 40 is "Moderate (Multi-Step)", distinct from Level 20 Super Hardcore
+00:00 +5: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Preparation levels are everything else in Zone 1 & Zone 3
+00:00 +6: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: isChallengeLevel flags only Zone 1 & Zone 3 gate levels (8 total, not 12)
+00:00 +7: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: No level in Zone 2 (21-40) is ever a challenge level
+00:00 +8: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: getZone correctly buckets levels into 1, 2, or 3
+00:00 +9: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: getZone throws for out-of-range levels
+00:00 +10: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: 9/20 (45%) => Beginner, startingLevel 1
+00:00 +11: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: 10/20 (50%) => Intermediate boundary, startingLevel 21
+00:00 +12: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: 15/20 (75%) => Advanced boundary, startingLevel 41
+00:00 +13: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: 20/20 (100%) => Mastery, startingLevel 41
+00:00 +14: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: 19/20 (95%) => Advanced, NOT Mastery
+00:00 +15: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Preparation ranges match the documented remediation map (Zone 1 & Zone 3 only)
+00:00 +16: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: getPreparationRange throws for a non-challenge level
+00:00 +17: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: getPreparationRange throws for Levels 25, 30, 35, and 40 (no longer gates)
+00:00 +18: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Combined fixture bank has 300 questions, 5 per level for levels 1-60
+00:00 +19: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Every question_id is unique across the combined bank
+00:00 +20: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Difficulty tags in the bank match getDifficulty() for each level
+00:00 +21: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Every Zone 2 question has correct_answer present among its own choices
+00:00 +22: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Zone 2 questions all have challengeGroup == null (no remediation linkage)
+00:00 +23: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Zone 3 preparation questions link to their correct challengeGroup
+00:00 +24: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Zone 3 gate levels (45, 50, 55, 60) carry their own challengeGroup
+00:00 +25: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Shuffle returns a permutation (same elements, same length)
+00:00 +26: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Shuffle does not mutate the original list
+00:00 +27: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Shuffle with a fixed seeded RNG is deterministic
+00:00 +28: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Shuffle distribution is roughly uniform (sanity check on position 0)
+00:00 +29: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion never returns a used question when alternatives exist
+00:00 +30: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion returns only level + required-difficulty questions
+00:00 +31: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion falls back to reuse only when all questions used
+00:00 +32: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion returns null for a level outside the 1-60 game range
+00:00 +33: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion works for Zone 2 "Moderate" levels using the combined bank
+00:00 +34: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion works for Level 40 "Moderate (Multi-Step)"
+00:00 +35: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion works for Zone 3 Hard levels (45, 50, 55)
+00:00 +36: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectQuestion works for Level 60 "Final Boss"
+00:00 +37: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Repeated selectQuestion calls vary the returned question
+00:00 +38: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Passing a challenge unlocks the next level
+00:00 +39: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Failing Level 5 returns learner to Level 1 (prep range [1,2,3,4])
+00:00 +40: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Failing Level 20 returns learner to Level 16 (prep range [16..19])
+00:00 +41: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: resolveChallengeAttempt throws for Level 25/30/35/40 — Zone 2 has no challenge levels
+00:00 +42: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectRemediationQuestion picks an unused question in the range
+00:00 +43: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectNewChallengeQuestion never returns the just-failed question
+00:00 +44: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Failing Level 45 returns learner to Level 41 (prep range [41,42,43,44])
+00:00 +45: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Failing Level 50/55/60 maps to the documented Zone 3 prep ranges
+00:00 +46: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Passing Level 60 emits the game-complete signal (nextLevel 61)
+00:00 +47: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectRemediationQuestion pulls NEW unused questions across the full 300-bank
+00:00 +48: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: selectNewChallengeQuestion for Level 60 never returns the just-failed id
+00:00 +49: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Mastery threshold (75%): 3/4 passes, 2/4 fails
+00:00 +50: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/game_logic_service_test.dart: Mastery threshold: 0 attempts never counts as mastery
+00:00 +51: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — preparation (non-challenge) level starting level 1 selects a question and completes on submit
+00:00 +52: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — preparation (non-challenge) level preparation level requires a CORRECT answer to complete
+00:00 +53: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — repeat until correct wrong answer on a challenge repeats the SAME question (no advance)
+00:00 +54: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — repeat until correct correct answer after repeated wrong answers completes the level
+00:00 +55: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — difficulty facade reports difficulty and challenge classification per level
+00:00 +56: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — difficulty facade returns levelFailed when the bank has no questions for the level
+00:00 +57: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — difficulty facade reports Intermediate-zone difficulties through the facade
+00:00 +58: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — real-time profile sync subscribeToProfile stores StudentProfile with teacher fields
+00:00 +59: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — real-time profile sync studentProfile is null before any profile data arrives
+00:00 +60: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — answer feedback & session scoring correct answer sets feedback pending, lastCorrect, and score 1
+00:00 +61: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — answer feedback & session scoring wrong answer records lastCorrect=false and does not add to score
+00:00 +62: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — answer feedback & session scoring dismissFeedback clears the pending-feedback record
+00:00 +63: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — Intermediate zone (21–40, no gates) Level 21 draws a Moderate question and is NOT a challenge level
+00:00 +64: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — Intermediate zone (21–40, no gates) Level 25: wrong answer repeats SAME question — never remediation
+00:00 +65: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — Intermediate zone (21–40, no gates) Level 40 reports "Moderate (Multi-Step)" and completes gate-free
+00:00 +66: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/level_provider_test.dart: LevelProvider — Intermediate zone (21–40, no gates) remediation engine refuses to trigger for any Zone 2 level
+00:00 +67: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap round-trips through toMap after fromMap
+00:00 +68: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap fromMap derives the doc id and applies defaults when sparse
+00:00 +69: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.fromMap / toMap fromMap tolerates a list-shaped choices field
+00:00 +70: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect matches by choice key (case-insensitive)
+00:00 +71: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect matches by the correct choice value
+00:00 +72: C:/Users/saboc/OneDrive/Desktop/Mathalino/mathalino_student_app/test/question_model_test.dart: QuestionModel.isCorrect rejects null/empty answers
+00:00 +73: All tests passed!

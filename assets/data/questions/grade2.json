@@ -1,0 +1,271 @@
+[
+  {
+    "id": "RMA_G2_001",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_NS_PLACE",
+    "competencyDescription": "Identify place value of 2-digit to 3-digit numbers",
+    "taskLabel": "Place Value",
+    "prompt": "In the number 85, what is the value of the digit 8?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 8",
+      "B. 80",
+      "C. 800",
+      "D. 58"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 80",
+      "80"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G2_002",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_NS_SKIP",
+    "competencyDescription": "Skip count by 2s and 5s",
+    "taskLabel": "Skip Counting",
+    "prompt": "What number completes the pattern: 5, 10, 15, 20, 25, ___?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 28",
+      "B. 30",
+      "C. 35",
+      "D. 40"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 30",
+      "30"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G2_003",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_OP_ADD",
+    "competencyDescription": "Add 2-digit numbers without regrouping",
+    "taskLabel": "Addition",
+    "prompt": "What is 34 + 25?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 49",
+      "B. 58",
+      "C. 59",
+      "D. 69"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 59",
+      "59"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G2_004",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_OP_SUB",
+    "competencyDescription": "Subtract 2-digit numbers without regrouping",
+    "taskLabel": "Subtraction",
+    "prompt": "What is 67 - 23?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 40",
+      "B. 44",
+      "C. 45",
+      "D. 54"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 44",
+      "44"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G2_005",
+    "grade": 2,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G2_MG_TIME",
+    "competencyDescription": "Read and tell time on an analog clock",
+    "taskLabel": "Time",
+    "prompt": "The short hand points to 3 and the long hand points to 12. What time is it?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 12:03",
+      "B. 3:00",
+      "C. 3:12",
+      "D. 12:15"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 3:00",
+      "3:00"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G2_006",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_OP_REP_ADD",
+    "competencyDescription": "Understand multiplication as repeated addition",
+    "taskLabel": "Multiplication Concept",
+    "prompt": "Which expression represents 4 + 4 + 4?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 4 × 2",
+      "B. 3 × 4",
+      "C. 4 × 4",
+      "D. 3 + 4"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. 3 × 4"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "understanding"
+    ]
+  },
+  {
+    "id": "RMA_G2_007",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_NS_EVEN_ODD",
+    "competencyDescription": "Identify even and odd numbers up to 100",
+    "taskLabel": "Even and Odd",
+    "prompt": "Which of the following is an EVEN number?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 17",
+      "B. 29",
+      "C. 42",
+      "D. 55"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 42",
+      "42"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G2_008",
+    "grade": 2,
+    "strand": "Measurement and Geometry",
+    "competencyCode": "G2_MG_LENGTH",
+    "competencyDescription": "Measure length using standard units (cm, m)",
+    "taskLabel": "Measurement",
+    "prompt": "Which unit is best to measure the length of a pencil?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. Centimeters (cm)",
+      "B. Meters (m)",
+      "C. Kilograms (kg)",
+      "D. Liters (L)"
+    ],
+    "acceptableAnswers": [
+      "A",
+      "A. Centimeters (cm)"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "knowing"
+    ]
+  },
+  {
+    "id": "RMA_G2_009",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_OP_REGROUP",
+    "competencyDescription": "Add 2-digit numbers with regrouping",
+    "taskLabel": "Addition with Regrouping",
+    "prompt": "What is 38 + 27?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. 55",
+      "B. 64",
+      "C. 65",
+      "D. 75"
+    ],
+    "acceptableAnswers": [
+      "C",
+      "C. 65",
+      "65"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  },
+  {
+    "id": "RMA_G2_010",
+    "grade": 2,
+    "strand": "Number and Algebra",
+    "competencyCode": "G2_OP_WORD",
+    "competencyDescription": "Solve subtraction word problems involving money",
+    "taskLabel": "Word Problem",
+    "prompt": "Ana has ₱50. She bought a sandwich for ₱28. How much change did she receive?",
+    "type": "multipleChoice",
+    "choices": [
+      "A. ₱18",
+      "B. ₱22",
+      "C. ₱28",
+      "D. ₱32"
+    ],
+    "acceptableAnswers": [
+      "B",
+      "B. ₱22",
+      "22",
+      "₱22"
+    ],
+    "points": 1,
+    "difficulty": "normal",
+    "source": "rmaOfficial",
+    "tags": [
+      "applying"
+    ]
+  }
+]
