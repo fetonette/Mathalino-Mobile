@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -9,15 +8,13 @@ import '../models/learn_content_models.dart';
 /// Service responsible for loading grade-specific Learn content
 /// per the specifications in LEARN_CONTENT_STRUCTURE.md (§8).
 class LearnContentService {
-  final FirebaseFirestore _db;
   static const String assetPath = 'assets/data/mathalino_learn_content_v2.json';
 
   // In-memory caches to prevent redundant network and disk operations
   final Map<int, GradeLearnContent> _gradeCache = {};
   LearnContentPackage? _cachedPackage;
 
-  LearnContentService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance {
+  LearnContentService() {
     _initFromBundled();
   }
 
@@ -156,9 +153,6 @@ class LearnContentService {
     // Return instant local content first
     final initialContent = await fetchGradeLearnContent(gradeLevel);
 
-    // In background, verify against Firestore user profile without blocking UI
-    _verifyUserProfileGradeInBackground(userId, gradeLevel);
-
     return initialContent;
   }
 
@@ -168,70 +162,16 @@ class LearnContentService {
     if (_gradeCache.containsKey(gradeLevel)) {
       return _gradeCache[gradeLevel]!;
     }
-
-    // 1. Instant local asset load (guaranteed 0ms network latency)
+    // Load from local bundled asset (primary source)
     try {
       final local = await fetchFromAsset(gradeLevel);
-      // Trigger background sync with Firestore if online (with strict timeout)
-      _syncFirestoreInBackground(gradeLevel);
       return local;
     } catch (e) {
       debugPrint('[LearnContentService] Asset load warning: $e');
     }
-
-    // 2. Firestore fallback with strict 2-second timeout
-    final docId = 'grade_$gradeLevel';
-    try {
-      final gradeSnap = await GradeLearnContent.collection(_db)
-          .doc(docId)
-          .get()
-          .timeout(const Duration(seconds: 2));
-      final content = gradeSnap.data();
-      if (content != null) {
-        _gradeCache[gradeLevel] = content;
-        return content;
-      }
-    } catch (e) {
-      debugPrint('[LearnContentService] Firestore fetch error for $docId: $e');
-    }
-
     throw StateError('No Learn content found for grade $gradeLevel');
   }
 
-  void _syncFirestoreInBackground(int gradeLevel) {
-    final docId = 'grade_$gradeLevel';
-    GradeLearnContent.collection(_db)
-        .doc(docId)
-        .get()
-        .timeout(const Duration(seconds: 3))
-        .then((snap) {
-      final data = snap.data();
-      if (data != null) {
-        _gradeCache[gradeLevel] = data;
-      }
-    }).catchError((_) {
-      // Background sync silently ignores errors/offline
-    });
-  }
-
-  void _verifyUserProfileGradeInBackground(String userId, int currentGrade) {
-    _db.collection('users').doc(userId).get().timeout(const Duration(seconds: 3)).then((snap) {
-      final data = snap.data();
-      if (data != null && data['gradeLevel'] != null) {
-        final raw = data['gradeLevel'];
-        int? remoteGrade;
-        if (raw is int) {
-          remoteGrade = raw;
-        } else if (raw is String) {
-          final match = RegExp(r'\d+').firstMatch(raw);
-          if (match != null) remoteGrade = int.tryParse(match.group(0)!);
-        }
-        if (remoteGrade != null && remoteGrade != currentGrade) {
-          fetchFromAsset(remoteGrade).catchError((_) => fetchGradeLearnContent(remoteGrade!));
-        }
-      }
-    }).catchError((_) {});
-  }
 
   /// Clears in-memory cache (e.g. on user logout)
   void clearCache() {

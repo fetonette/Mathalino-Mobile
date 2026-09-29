@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -62,14 +61,10 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final levelProvider = _provider!;
-      // Attach a Firestore instance so used-questions history is persisted.
-      try {
-        levelProvider.attachFirestore(FirebaseFirestore.instance);
-      } catch (e) {
-        debugPrint('[BeginnerZoneGameplayScreen] Firestore attach skipped: $e');
-      }
+      // LevelProvider now persists to Supabase automatically (no attach needed).
       levelProvider.startLevel(
             userId: widget.user.uid,
+            lrn: widget.user.lrn,
             level: widget.levelNumber,
             usedHistory: widget.usedHistory.isNotEmpty
                 ? widget.usedHistory
@@ -459,7 +454,7 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -516,6 +511,7 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                       await levelProgressProvider.completeLevel(
                         widget.user.uid,
                         widget.levelNumber,
+                        lrn: widget.user.lrn,
                       );
                     } catch (e) {
                       debugPrint(
@@ -577,7 +573,7 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -653,6 +649,7 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                       await levelProgressProvider.completeLevel(
                         widget.user.uid,
                         kFinalBossLevel,
+                        lrn: widget.user.lrn,
                       );
                     } catch (e) {
                       debugPrint(

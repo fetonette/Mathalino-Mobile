@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/models/question_model.dart';
 import '../core/services/game_logic_service.dart';
 import '../core/services/question_bank_service.dart';
+import '../core/services/supabase_service.dart';
 
 /// The phase of the current Beginner Zone level session.
 enum PlayerPhase {
@@ -57,8 +57,9 @@ enum PlayerPhase {
 class LevelProvider extends ChangeNotifier {
   final GameLogicService _gameLogic;
   final QuestionBankService _questionBank;
+  final SupabaseService _supabaseService;
 
-    /// When true, Firestore writes are skipped (used by unit tests).
+  /// When true, database writes are skipped (used by unit tests).
   final bool _dryRun;
 
   /// Minimum number of preparation-range attempts required before the
@@ -72,17 +73,17 @@ class LevelProvider extends ChangeNotifier {
   LevelProvider({
     GameLogicService? gameLogic,
     QuestionBankService? questionBank,
+    SupabaseService? supabaseService,
     this._dryRun = false,
   })  : _gameLogic = gameLogic ?? const GameLogicService(),
-        _questionBank = questionBank ?? QuestionBankService();
+        _questionBank = questionBank ?? QuestionBankService(),
+        _supabaseService = supabaseService ?? SupabaseService();
 
-  /// Injected Firestore for persistence (only used when !_dryRun).
-  FirebaseFirestore? _firestore;
-
-  void attachFirestore(FirebaseFirestore firestore) => _firestore = firestore;
+  void attachFirestore(dynamic _) {} // no-op kept for call-site compatibility
 
   // ── Session state ────────────────────────────────────────────────────
   String _userId = '';
+  String _lrn = '';
   int _level = 1;
   PlayerPhase _phase = PlayerPhase.idle;
   bool _isLoading = false;
@@ -154,14 +155,16 @@ class LevelProvider extends ChangeNotifier {
 
   /// Begins a level session for [level]. [usedHistory] is the student's
   /// existing `usedQuestionsHistory` from their profile. [seedBank] may be
-  /// supplied in tests to avoid a Firestore round-trip.
+  /// supplied in tests to avoid a network round-trip.
   Future<void> startLevel({
     required String userId,
+    String? lrn,
     required int level,
     required List<String> usedHistory,
     List<QuestionModel>? seedBank,
   }) async {
     _userId = userId;
+    _lrn = lrn ?? '';
     _level = level;
     _usedHistory = List.of(usedHistory);
     _preparationRange = const [];
@@ -236,8 +239,9 @@ class LevelProvider extends ChangeNotifier {
     if (!_gameLogic.isChallengeLevel(_level)) {
       // Preparation level: a single CORRECT answer completes the level.
       _phase = PlayerPhase.levelComplete;
-      notifyListeners();
       unawaited(_persistHistory());
+      unawaited(_persistComplete());
+      notifyListeners();
       return;
     }
 
@@ -401,7 +405,7 @@ class LevelProvider extends ChangeNotifier {
     unawaited(_persistComplete());
   }
 
-      // ── Persistence (skipped in dry-run / tests) ─────────────────────────
+  // ── Persistence (skipped in dry-run / tests) ─────────────────────────
 
   /// Public error setter so the UI can surface failures from async callbacks.
   void setError(String message) {
@@ -413,21 +417,18 @@ class LevelProvider extends ChangeNotifier {
   Future<void> _persistHistory() async {
     if (_dryRun) return;
     try {
-      await _firestore?.collection('users').doc(_userId).update({
-        'usedQuestionsHistory': FieldValue.arrayUnion(_usedHistory),
-      });
-
-      // Dual-write to /student_progress/{uid}
-      await _firestore?.collection('student_progress').doc(_userId).set({
-        'usedQuestionsHistory': FieldValue.arrayUnion(_usedHistory),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _supabaseService.recordUsedQuestions(
+        userId: _userId,
+        lrn: _lrn,
+        level: _level,
+        questionIds: _usedHistory,
+      );
     } catch (e) {
       debugPrint('[LevelProvider] persistHistory error: $e');
     }
   }
 
-  /// Builds the Firestore merge payload written when the current level is
+  /// Builds the merge payload written when the current level is
   /// completed.
   ///
   /// For Levels 1–59 it marks the completed level `completed` and unlocks the
@@ -438,29 +439,35 @@ class LevelProvider extends ChangeNotifier {
   @visibleForTesting
   Map<String, dynamic> buildCompletePayload() {
     final isGameComplete = _level == kFinalBossLevel;
-    // The level just completed must be marked 'completed' — otherwise the
-    // Adventure Map's getLevelState() sees an 'unlocked' status on a boss
-    // level and renders it as an unfinished challenge forever. (Levels 1-59
-    // were only masked because currentLevel advances past them; Level 60 can
-    // never advance, so this is the only record that marks it finished.)
+    final now = DateTime.now().toIso8601String();
     final data = <String, dynamic>{
       'levelStatus.$_level': 'completed',
+      'level_status_map': {_level.toString(): 'completed'},
       'needsTeacherSupport': false,
+      'needs_teacher_support': false,
       'status': 'active',
       'studentStatus': 'active',
-      'remediation': FieldValue.delete(),
-      'usedQuestionsHistory': FieldValue.arrayUnion(_usedHistory),
+      'remediation': null,
+      'usedQuestionsHistory': _usedHistory,
+      'used_questions_history': _usedHistory,
+      'updated_at': now,
     };
     if (isGameComplete) {
-      // Final boss: keep currentLevel clamped at 60 and record the milestone.
       data['currentLevel'] = kFinalBossLevel;
+      data['current_level'] = kFinalBossLevel;
       data['current'] = kFinalBossLevel;
-      data['completedZones'] = FieldValue.arrayUnion(['ZONE_3']);
+      data['completedZones'] = ['ZONE_3'];
+      data['completed_zones'] = ['ZONE_3'];
     } else {
       final next = _level + 1;
       data['currentLevel'] = next;
+      data['current_level'] = next;
       data['current'] = next;
       data['levelStatus.$next'] = 'unlocked';
+      data['level_status_map'] = {
+        _level.toString(): 'completed',
+        next.toString(): 'unlocked',
+      };
     }
     return data;
   }
@@ -468,138 +475,59 @@ class LevelProvider extends ChangeNotifier {
   Future<void> _persistComplete() async {
     if (_dryRun) return;
     try {
-      final userRef = _firestore?.collection('users').doc(_userId);
-      if (userRef == null) return;
-
-      final payload = buildCompletePayload();
-
-      // 1. Update the student profile (currentLevel, levelStatus, zones) on /users/{uid}.
-      await userRef.set(
-        payload,
-        SetOptions(merge: true),
-      );
-
-      // 1b. Dual-write to /student_progress/{uid}
-      try {
-        await _firestore?.collection('student_progress').doc(_userId).set(
-          {
-            ...payload,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      } catch (err) {
-        debugPrint('[LevelProvider] student_progress dual-write error: $err');
-      }
-
-      // 2. Write a per-level result record so the teacher dashboard's Progress
-      //    Report view can show a real activity timeline and accuracy history.
-      //    Path: /users/{uid}/levelResults/{auto-id}
-      final zone = _level <= 20
-          ? 'ZONE_1'
-          : _level <= 40
-              ? 'ZONE_2'
-              : 'ZONE_3';
+      final isGameComplete = _level == kFinalBossLevel;
+      final nextLevel = isGameComplete ? kFinalBossLevel : _level + 1;
+      final zone = _level <= 20 ? 'ZONE_1' : _level <= 40 ? 'ZONE_2' : 'ZONE_3';
       final accuracyPct = _attemptedTotal > 0
-          ? double.parse(
-              (_score / _attemptedTotal * 100).toStringAsFixed(1))
+          ? double.parse((_score / _attemptedTotal * 100).toStringAsFixed(1))
           : 0.0;
-
-      await userRef.collection('levelResults').add({
-        'levelNumber':    _level,
-        'zone':           zone,
-        'isChallenge':    _gameLogic.isChallengeLevel(_level),
-        'score':          _score,
-        'totalQuestions': _attemptedTotal,
-        'accuracyPct':    accuracyPct,
-        'completedAt':    FieldValue.serverTimestamp(),
-      });
-
-      // 3. Write a unified record to /student_results
       final isChallenge = _gameLogic.isChallengeLevel(_level);
-      final assessmentType = isChallenge ? 'LEVEL_CHALLENGE' : 'LEVEL_PRACTICE';
-      final title = isChallenge ? 'Level $_level Challenge' : 'Level $_level Practice';
 
-      await _firestore?.collection('student_results').add({
-        'studentId':       _userId,
-        'userId':          _userId, // Dual-write alias
-        'assessmentType':  assessmentType,
-        'title':           title,
-        'levelNumber':     _level,
-        'zone':            zone,
-        'difficulty':      difficulty,
-        'score':           _score,
-        'maxScore':        _attemptedTotal,
-        'totalQuestions':  _attemptedTotal, // Dual-write alias
-        'percentage':      accuracyPct,
-        'accuracy':        _attemptedTotal > 0 ? _score / _attemptedTotal : 0.0,
-        'completionStatus':'completed',
-        'attemptNumber':   1,
-        'timestamp':       FieldValue.serverTimestamp(),
-        'completedAt':     FieldValue.serverTimestamp(), // Dual-write alias
-      });
+      await _supabaseService.saveLevelCompletion(
+        userId: _userId,
+        lrn: _lrn,
+        level: _level,
+        nextLevel: nextLevel,
+        isGameComplete: isGameComplete,
+        usedQuestions: _usedHistory,
+        score: _score,
+        maxScore: _attemptedTotal > 0 ? _attemptedTotal : 1,
+        accuracyPct: accuracyPct,
+        isChallenge: isChallenge,
+        difficulty: difficulty,
+        zone: zone,
+      );
     } catch (e) {
       debugPrint('[LevelProvider] persistComplete error: $e');
     }
   }
 
-  /// Persists the Needs Teacher Support escalation state to Firestore.
+  /// Persists the Needs Teacher Support escalation state to Supabase.
   Future<void> _persistTeacherSupport() async {
     if (_dryRun) return;
     try {
-      final userRef = _firestore?.collection('users').doc(_userId);
-      if (userRef == null) return;
-
-      final payload = <String, dynamic>{
-        'needsTeacherSupport': true,
-        'status': 'needs_support',
-        'studentStatus': 'needs_support',
-        'remediation': {
-          'active': true,
-          'targetLevel': _level,
-          'cycleCount': _remediationCycleCount,
-          'needsTeacherSupport': true,
-          'supportReason': 'Struggling with Level $_level after 3 remediation cycles',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
+      final zone = _level <= 20 ? 'ZONE_1' : _level <= 40 ? 'ZONE_2' : 'ZONE_3';
+      final now = DateTime.now().toIso8601String();
+      final remediationMap = {
+        'active': true,
+        'target_level': _level,
+        'cycle_count': _remediationCycleCount,
+        'needs_teacher_support': true,
+        'support_reason': 'Struggling with Level $_level after 3 remediation cycles',
+        'updated_at': now,
       };
 
-      await userRef.set(payload, SetOptions(merge: true));
-
-      // Dual-write to /student_progress/{uid}
-      await _firestore?.collection('student_progress').doc(_userId).set(
-        {
-          ...payload,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
+      await _supabaseService.saveRemediationUpdate(
+        userId: _userId,
+        lrn: _lrn,
+        remediationData: remediationMap,
+        needsTeacherSupport: true,
+        status: 'needs_support',
+        remediationLevel: _level,
+        remediationFailedCount: _remediationCycleCount,
+        zone: zone,
+        difficulty: difficulty,
       );
-
-      // Audit log in student_results
-      final zone = _level <= 20
-          ? 'ZONE_1'
-          : _level <= 40
-              ? 'ZONE_2'
-              : 'ZONE_3';
-
-      await _firestore?.collection('student_results').add({
-        'studentId':        _userId,
-        'userId':           _userId,
-        'assessmentType':   'REMEDIATION_SUPPORT_NEEDED',
-        'title':            'Remediation Alert: Teacher Support Needed (Level $_level)',
-        'levelNumber':      _level,
-        'zone':             zone,
-        'difficulty':       difficulty,
-        'score':            0,
-        'maxScore':         1,
-        'totalQuestions':   1,
-        'percentage':       0.0,
-        'accuracy':         0.0,
-        'completionStatus': 'needs_support',
-        'attemptNumber':    _remediationCycleCount,
-        'timestamp':        FieldValue.serverTimestamp(),
-        'completedAt':      FieldValue.serverTimestamp(),
-      });
     } catch (e) {
       debugPrint('[LevelProvider] _persistTeacherSupport error: $e');
     }

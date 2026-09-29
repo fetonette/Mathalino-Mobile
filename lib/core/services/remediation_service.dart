@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../constants/game_rules.dart';
 import '../models/question.dart';
@@ -85,6 +85,9 @@ class RemediationState {
       recentCorrectness.addAll(recent.map((e) => e == true));
     }
 
+    final createdAtRaw = map['createdAt'];
+    final updatedAtRaw = map['updatedAt'];
+
     return RemediationState(
       active: map['active'] == true,
       targetLevel: (map['targetLevel'] ?? 0) as int,
@@ -98,12 +101,8 @@ class RemediationState {
       cycleCount: (map['cycleCount'] ?? 1) as int,
       needsTeacherSupport: map['needsTeacherSupport'] == true,
       supportReason: map['supportReason']?.toString(),
-      createdAt: map['createdAt'] is Timestamp
-          ? (map['createdAt'] as Timestamp).toDate()
-          : null,
-      updatedAt: map['updatedAt'] is Timestamp
-          ? (map['updatedAt'] as Timestamp).toDate()
-          : null,
+      createdAt: createdAtRaw is String ? DateTime.tryParse(createdAtRaw) : null,
+      updatedAt: updatedAtRaw is String ? DateTime.tryParse(updatedAtRaw) : null,
     );
   }
 
@@ -175,26 +174,19 @@ class RemediationState {
 ///    (excluding the previously failed question ID) and presents it.
 /// 5. On success, clears the remediation object and unlocks `targetLevel + 1`.
 class RemediationService {
-  final FirebaseFirestore? _injectedFirestore;
   final QuestionSelectorService _questionSelector;
   final ScoringService _scoringService;
 
   RemediationService({
-    FirebaseFirestore? firestore,
     QuestionSelectorService? questionSelector,
     ScoringService? scoringService,
-  })  : _injectedFirestore = firestore,
-        _questionSelector = questionSelector ?? QuestionSelectorService(),
+  })  : _questionSelector = questionSelector ?? QuestionSelectorService(),
         _scoringService = scoringService ?? ScoringService();
 
-  FirebaseFirestore? _resolvedFirestore;
-
-  /// Lazily resolves Firestore or returns null if Firebase is not initialized.
-  FirebaseFirestore? get _db {
-    if (_injectedFirestore != null) return _injectedFirestore;
+  /// Lazily resolves SupabaseClient or returns null if not initialized.
+  SupabaseClient? get _db {
     try {
-      _resolvedFirestore ??= FirebaseFirestore.instance;
-      return _resolvedFirestore;
+      return Supabase.instance.client;
     } catch (_) {
       return null;
     }
@@ -234,22 +226,14 @@ class RemediationService {
       updatedAt: now,
     );
 
-    // 2. Write the remediation object to the student's Firestore profile.
-    final firestore = _db;
-    if (firestore != null) {
-      await firestore.collection('users').doc(userId).set({
+    // 2. Write the remediation object to the student's Supabase progress.
+    final db = _db;
+    if (db != null) {
+      await db.from('student_progress').update({
         'remediation': remediation.toMap(),
-      }, SetOptions(merge: true));
-
-      // Dual-write to /student_progress/{userId}
-      try {
-        await firestore.collection('student_progress').doc(userId).set({
-          'remediation': remediation.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('[RemediationService] student_progress dual-write error: $e');
-      }
+        'remediation_active': true,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('uid', userId);
     }
 
     debugPrint('[RemediationService] Started remediation for level $failedLevel '
@@ -258,27 +242,23 @@ class RemediationService {
     return remediation;
   }
 
-  /// Loads the current remediation state for a student.
-  /// Dual-read: checks /student_progress/{userId} first, falling back to /users/{userId}.
+  /// Loads the current remediation state for a student from `student_progress`.
   Future<RemediationState> getRemediationState(String userId) async {
-    final firestore = _db;
-    if (firestore == null) return RemediationState.inactive();
+    final db = _db;
+    if (db == null) return RemediationState.inactive();
     try {
-      final progressDoc = await firestore.collection('student_progress').doc(userId).get();
-      if (progressDoc.exists && progressDoc.data()?['remediation'] != null) {
-        return RemediationState.fromMap(
-          progressDoc.data()!['remediation'] as Map<String, dynamic>?,
-        );
-      }
+      final row = await db
+          .from('student_progress')
+          .select('remediation')
+          .eq('uid', userId)
+          .maybeSingle();
+      return RemediationState.fromMap(
+        row?['remediation'] as Map<String, dynamic>?,
+      );
     } catch (e) {
-      debugPrint('[RemediationService] getRemediationState student_progress read fallback: $e');
+      debugPrint('[RemediationService] getRemediationState error: $e');
+      return RemediationState.inactive();
     }
-
-    final doc = await firestore.collection('users').doc(userId).get();
-    if (!doc.exists) return RemediationState.inactive();
-    final data = doc.data();
-    if (data == null) return RemediationState.inactive();
-    return RemediationState.fromMap(data['remediation'] as Map<String, dynamic>?);
   }
 
   /// Fetches a batch of preparation questions for the active remediation.
@@ -408,34 +388,28 @@ class RemediationService {
     final targetLevel = remediation.targetLevel;
     final nextLevel = (targetLevel + 1).clamp(1, 60);
 
-    final firestore = _db;
-    if (firestore != null) {
-      // 1. Clear the remediation object and reset studentStatus.
-      await firestore.collection('users').doc(userId).update({
-        'remediation': FieldValue.delete(),
-        'needsTeacherSupport': false,
-        'status': 'active',
-        'studentStatus': 'active',
-      });
+    final db = _db;
+    if (db != null) {
+      final now = DateTime.now().toIso8601String();
+      // Read current level_status_map and merge on student_progress
+      final currentRow = await db
+          .from('student_progress')
+          .select('level_status_map')
+          .eq('uid', userId)
+          .maybeSingle();
+      final existingMap = Map<String, dynamic>.from(
+        currentRow?['level_status_map'] as Map? ?? {},
+      );
+      existingMap[targetLevel.toString()] = 'completed';
+      existingMap[nextLevel.toString()] = 'unlocked';
 
-      // 2. Unlock the next level.
-      await firestore.collection('users').doc(userId).set({
-        'levelStatus.$nextLevel': 'unlocked',
-        'currentLevel': nextLevel,
-      }, SetOptions(merge: true));
-
-      // Dual-write to /student_progress/{userId}
-      try {
-        await firestore.collection('student_progress').doc(userId).set({
-          'remediation': FieldValue.delete(),
-          'needsTeacherSupport': false,
-          'levelStatusMap.$nextLevel': 'unlocked',
-          'currentLevel': nextLevel,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('[RemediationService] student_progress completeRemediation error: $e');
-      }
+      await db.from('student_progress').update({
+        'remediation': null,
+        'remediation_active': false,
+        'current_level': nextLevel,
+        'level_status_map': existingMap,
+        'updated_at': now,
+      }).eq('uid', userId);
     }
 
     debugPrint('[RemediationService] Remediation complete for level $targetLevel. '
@@ -478,26 +452,16 @@ class RemediationService {
       userPayload['studentStatus'] = 'needs_support';
     }
 
-    final firestore = _db;
-    if (firestore != null) {
-      await firestore.collection('users').doc(userId).set(userPayload, SetOptions(merge: true));
-
-      // Dual-write to /student_progress/{userId}
-      try {
-        final progressPayload = <String, dynamic>{
-          'remediation': reset.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-        if (needsSupport) {
-          progressPayload['needsTeacherSupport'] = true;
-        }
-        await firestore.collection('student_progress').doc(userId).set(progressPayload, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('[RemediationService] student_progress repeatFailure error: $e');
-      }
+    final db = _db;
+    if (db != null) {
+      final now = DateTime.now().toIso8601String();
+      await db.from('student_progress').update({
+        'remediation': reset.toMap(),
+        'remediation_active': reset.active,
+        'updated_at': now,
+      }).eq('uid', userId);
 
       if (needsSupport) {
-        // Record support event in student_results
         try {
           await recordRemediationResult(
             userId: userId,
@@ -509,7 +473,7 @@ class RemediationService {
             completionStatus: 'needs_support',
           );
         } catch (e) {
-          debugPrint('[RemediationService] student_results support alert record error: $e');
+          debugPrint('[RemediationService] support alert record error: $e');
         }
       }
     }
@@ -520,26 +484,18 @@ class RemediationService {
     return reset;
   }
 
-  /// Persists the current remediation state to Firestore.
+  /// Persists the current remediation state to student_progress.
   Future<void> updateRemediationState({
     required String userId,
     required RemediationState remediation,
   }) async {
-    final firestore = _db;
-    if (firestore != null) {
-      await firestore.collection('users').doc(userId).set({
+    final db = _db;
+    if (db != null) {
+      await db.from('student_progress').update({
         'remediation': remediation.toMap(),
-      }, SetOptions(merge: true));
-
-      // Dual-write to /student_progress/{userId}
-      try {
-        await firestore.collection('student_progress').doc(userId).set({
-          'remediation': remediation.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('[RemediationService] student_progress updateRemediationState error: $e');
-      }
+        'remediation_active': remediation.active,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('uid', userId);
     }
   }
 
@@ -554,34 +510,38 @@ class RemediationService {
     List<QuestionResultItem>? questionResults,
     String? completionStatus,
   }) async {
-    final firestore = _db;
-    if (firestore == null) return;
+    final db = _db;
+    if (db == null) return;
 
     final zone = _getZoneForLevel(targetLevel);
     final percentage = totalQuestions > 0 ? (score / totalQuestions) * 100.0 : 0.0;
     final status = completionStatus ?? ((score == totalQuestions || percentage >= 80.0) ? 'passed' : 'retry');
     final itemsList = questionResults?.map((e) => e.toMap()).toList();
 
-    await firestore.collection('student_results').add({
-      'studentId': userId,
-      'userId': userId, // Dual-write alias
-      'levelNumber': targetLevel,
+    String lrn = '';
+    try {
+      final u = await db.from('users').select('lrn').eq('id', userId).maybeSingle();
+      lrn = u?['lrn']?.toString() ?? '';
+    } catch (_) {}
+
+    await db.from('student_results').insert({
+      'student_uid': userId,
+      if (lrn.isNotEmpty) 'lrn': lrn,
+      'level_number': targetLevel,
       'zone': 'ZONE_$zone',
-      'assessmentType': assessmentType,
-      'title': 'Remediation Session (Level $targetLevel)',
+      'assessment_type': assessmentType,
       'score': score,
-      'maxScore': totalQuestions,
-      'totalQuestions': totalQuestions, // Dual-write alias
+      'max_score': totalQuestions,
       'percentage': percentage,
       'accuracy': totalQuestions > 0 ? score / totalQuestions : 0.0,
-      'completionStatus': status,
-      'competencyCode': competencyCode,
-      if (itemsList != null) ...{
-        'questionResults': itemsList,
-        'itemBreakdown': itemsList,
+      'result_data': {
+        'studentId': userId,
+        'title': 'Remediation Session (Level $targetLevel)',
+        'completionStatus': status,
+        'competencyCode': competencyCode,
+        'questionResults': ?itemsList,
       },
-      'timestamp': FieldValue.serverTimestamp(),
-      'completedAt': FieldValue.serverTimestamp(), // Dual-write alias
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 

@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants/game_rules.dart';
 import '../models/question.dart';
 import 'rewards_service.dart';
 import 'scoring_service.dart';
+import 'supabase_service.dart';
 
 /// Result payload returned after completing a daily challenge.
 class DailyChallengeResult {
@@ -41,15 +41,15 @@ class DailyChallengeResult {
 /// - Writes a session record to `student_results`
 /// - Updates the student's stats on `/users/{uid}`
 class DailyChallengeService {
-  final FirebaseFirestore _firestore;
+  final SupabaseService _db;
   final ScoringService _scoringService;
   final RewardsService _rewardsService;
 
   DailyChallengeService({
-    FirebaseFirestore? firestore,
+    SupabaseService? db,
     ScoringService? scoringService,
     RewardsService? rewardsService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+  })  : _db = db ?? SupabaseService(),
         _scoringService = scoringService ?? ScoringService(),
         _rewardsService = rewardsService ?? RewardsService();
 
@@ -75,16 +75,12 @@ class DailyChallengeService {
   /// today.
   Future<List<Question>> fetchTodayChallenge({DateTime? now}) async {
     final date = now ?? DateTime.now();
-    final docRef = _firestore.doc(dailyChallengePath(date));
-    final snapshot = await docRef.get();
+    final dateKey = _formatDateKey(date);
 
-    if (!snapshot.exists || snapshot.data() == null) {
-      throw DailyChallengeNotFoundException(date);
-    }
+    final data = await _db.fetchDailyChallenge(dateKey);
+    if (data == null) throw DailyChallengeNotFoundException(date);
 
-    final data = snapshot.data()!;
     final rawQuestions = data['questions'];
-
     if (rawQuestions is! List || rawQuestions.isEmpty) {
       throw DailyChallengeNotFoundException(date);
     }
@@ -100,9 +96,8 @@ class DailyChallengeService {
   /// Returns `true` when a progress document already exists (replay blocked).
   Future<bool> hasCompletedToday(String userId, {DateTime? now}) async {
     final date = now ?? DateTime.now();
-    final docRef = _firestore.doc(studentDailyProgressPath(userId, date));
-    final snapshot = await docRef.get();
-    return snapshot.exists;
+    final dateKey = _formatDateKey(date);
+    return _db.hasCompletedDailyChallenge(userId, dateKey);
   }
 
   /// Completes the daily challenge and writes results atomically.
@@ -123,19 +118,15 @@ class DailyChallengeService {
   }) async {
     final date = now ?? DateTime.now();
     final dateKey = _formatDateKey(date);
-    final progressPath = studentDailyProgressPath(userId, date);
-    final challengePath = dailyChallengePath(date);
 
-    if (questions.isEmpty) {
-      throw StateError('Cannot complete an empty challenge.');
-    }
+    if (questions.isEmpty) throw StateError('Cannot complete an empty challenge.');
     if (answers.length != questions.length) {
       throw StateError(
         'Answer count (${answers.length}) does not match question count (${questions.length}).',
       );
     }
 
-    // Score all answers using the existing ScoringService pattern.
+    // Score all answers
     var totalPoints = 0;
     var maxPoints = 0;
     var correctCount = 0;
@@ -152,134 +143,105 @@ class DailyChallengeService {
       if (isCorrect) correctCount++;
 
       perQuestionResults.add({
-        'questionId': question.id,
-        'rawAnswer': rawAnswer?.toString() ?? '',
-        'pointsEarned': earned,
-        'maxPoints': question.maxPoints,
-        'isCorrect': isCorrect,
-        'competencyCode': question.competencyCode,
+        'question_id': question.id,
+        'raw_answer': rawAnswer?.toString() ?? '',
+        'points_earned': earned,
+        'max_points': question.maxPoints,
+        'is_correct': isCorrect,
+        'competency_code': question.competencyCode,
         'type': question.type,
       });
     }
 
-    // Run the atomic write transaction.
-    final result = await _firestore.runTransaction((transaction) async {
-      // 1. Replay prevention: ensure no progress doc exists.
-      final progressRef = _firestore.doc(progressPath);
-      final progressSnap = await transaction.get(progressRef);
-      if (progressSnap.exists) {
-        throw DailyChallengeAlreadyCompletedException(date);
-      }
+    // Replay check
+    if (await _db.hasCompletedDailyChallenge(userId, dateKey)) {
+      throw DailyChallengeAlreadyCompletedException(date);
+    }
 
-      // 2. Read current user stats for streak resolution.
-      final statsRef = _firestore.doc(statsDocumentPath(userId));
-      final statsSnap = await transaction.get(statsRef);
+    // Fetch current user stats for streak resolution
+    final userProfile = await _db.fetchStudentProfile(userId);
+    final currentXp = userProfile?.stats.totalXp ?? 0;
+    final currentCoins = userProfile?.stats.coins ?? 0;
+    final currentStreak = userProfile?.stats.streakDays ?? 0;
+    final lastActiveDate = userProfile?.stats.lastActiveDate;
 
-      int currentXp = 0;
-      int currentCoins = 0;
-      int currentStreak = 0;
-      DateTime? lastActiveDate;
+    // Resolve streak
+    final newStreak = _rewardsService.resolveStreak(
+      currentStreak: currentStreak,
+      lastActiveDate: lastActiveDate,
+    );
 
-      if (statsSnap.exists && statsSnap.data() != null) {
-        final statsData = statsSnap.data()!;
-        currentXp = (statsData['totalXp'] ?? 0) as int;
-        currentCoins = (statsData['coins'] ?? 0) as int;
-        currentStreak = (statsData['streakDays'] ?? 0) as int;
+    // Compute rewards
+    final xpAwarded = _rewardsService.calculateXp(
+      level: 1,
+      correctCount: correctCount,
+      totalQuestions: questions.length,
+      timeSpent: Duration.zero,
+      streakDays: newStreak,
+    );
+    final coinsAwarded = _rewardsService.calculateCoins(
+      correctCount: correctCount,
+      totalQuestions: questions.length,
+    );
 
-        final lastActive = statsData['lastActiveDate'];
-        if (lastActive is Timestamp) {
-          lastActiveDate = lastActive.toDate();
-        } else if (lastActive is DateTime) {
-          lastActiveDate = lastActive;
-        }
-      }
+    final accuracy = maxPoints == 0 ? 0.0 : totalPoints / maxPoints;
+    final percentage = accuracy * 100.0;
+    final completionStatus = accuracy >= 0.8 ? 'passed' : 'completed';
+    final nowIso = date.toIso8601String();
 
-      // 3. Resolve the new streak count.
-      final newStreak = _rewardsService.resolveStreak(
-        currentStreak: currentStreak,
-        lastActiveDate: lastActiveDate,
-      );
-
-      // 4. Compute rewards.
-      //    Daily challenges are not tied to a level, so base XP/coins use
-      //    the general completion constants.
-      final xpAwarded = _rewardsService.calculateXp(
-        level: 1,
-        correctCount: correctCount,
-        totalQuestions: questions.length,
-        timeSpent: Duration.zero,
-        streakDays: newStreak,
-      );
-      final coinsAwarded = _rewardsService.calculateCoins(
-        correctCount: correctCount,
-        totalQuestions: questions.length,
-      );
-
-      // 5. Write the student's daily progress document (anti-replay).
-      transaction.set(progressRef, {
-        'userId': userId,
+    // Write all records atomically via SupabaseService
+    await _db.recordDailyChallenge(
+      userId: userId,
+      dateKey: dateKey,
+      progressData: {
+        'user_id': userId,
         'date': dateKey,
-        'challengePath': challengePath,
-        'totalQuestions': questions.length,
-        'correctCount': correctCount,
-        'pointsEarned': totalPoints,
-        'maxPoints': maxPoints,
-        'accuracy': maxPoints == 0 ? 0.0 : totalPoints / maxPoints,
-        'xpAwarded': xpAwarded,
-        'coinsAwarded': coinsAwarded,
-        'streakDays': newStreak,
-        'completedAt': Timestamp.fromDate(date),
-        'perQuestionResults': perQuestionResults,
-      });
-
-      // 6. Update the user's stats subdocument (streak + XP + coins).
-      transaction.set(statsRef, {
-        'totalXp': currentXp + xpAwarded,
+        'total_questions': questions.length,
+        'correct_count': correctCount,
+        'points_earned': totalPoints,
+        'max_points': maxPoints,
+        'accuracy': accuracy,
+        'xp_awarded': xpAwarded,
+        'coins_awarded': coinsAwarded,
+        'streak_days': newStreak,
+        'completed_at': nowIso,
+        'per_question_results': perQuestionResults,
+      },
+      statsUpdate: {
+        'total_xp': currentXp + xpAwarded,
         'coins': currentCoins + coinsAwarded,
-        'streakDays': newStreak,
-        'lastActiveDate': Timestamp.fromDate(date),
-      }, SetOptions(merge: true));
-
-      // 7. Write a session record to `student_results` for dashboards.
-      final resultsRef = _firestore.collection('student_results').doc();
-      final accuracy = maxPoints == 0 ? 0.0 : totalPoints / maxPoints;
-      final percentage = accuracy * 100.0;
-      final completionStatus = accuracy >= 0.8 ? 'passed' : 'completed';
-
-      transaction.set(resultsRef, {
-        'studentId': userId,
-        'userId': userId, // Dual-write alias
-        'assessmentType': AssessmentType.dailyChallenge,
+        'streak_days': newStreak,
+        'last_active_date': nowIso,
+      },
+      resultData: {
+        'student_id': userId,
+        'assessment_type': AssessmentType.dailyChallenge,
         'title': 'Daily Math Challenge ($dateKey)',
         'date': dateKey,
         'score': correctCount,
-        'maxScore': questions.length,
-        'totalQuestions': questions.length, // Dual-write alias
-        'correctCount': correctCount,
-        'pointsEarned': totalPoints,
-        'maxPoints': maxPoints,
+        'max_score': questions.length,
+        'correct_count': correctCount,
+        'points_earned': totalPoints,
+        'max_points': maxPoints,
         'accuracy': accuracy,
         'percentage': percentage,
-        'completionStatus': completionStatus,
-        'xpAwarded': xpAwarded,
-        'coinsAwarded': coinsAwarded,
-        'streakDays': newStreak,
-        'timestamp': Timestamp.fromDate(date),
-        'completedAt': Timestamp.fromDate(date), // Dual-write alias
-      });
+        'completion_status': completionStatus,
+        'xp_awarded': xpAwarded,
+        'coins_awarded': coinsAwarded,
+        'streak_days': newStreak,
+        'created_at': nowIso,
+      },
+    );
 
-      return DailyChallengeResult(
-        totalQuestions: questions.length,
-        correctCount: correctCount,
-        pointsEarned: totalPoints,
-        maxPoints: maxPoints,
-        xpAwarded: xpAwarded,
-        coinsAwarded: coinsAwarded,
-        streakDays: newStreak,
-      );
-    });
-
-    return result;
+    return DailyChallengeResult(
+      totalQuestions: questions.length,
+      correctCount: correctCount,
+      pointsEarned: totalPoints,
+      maxPoints: maxPoints,
+      xpAwarded: xpAwarded,
+      coinsAwarded: coinsAwarded,
+      streakDays: newStreak,
+    );
   }
 
   /// Formats a [DateTime] as `yyyy-MM-dd`.

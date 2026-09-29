@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/diagnostic_questions.dart';
 import '../models/question.dart';
 
@@ -217,7 +216,7 @@ class DiagnosticAssessmentService {
       'correctAnswers': correctCount,
       'percentage': scorePercentage,
       'placementCategory': placementCategory,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now().toIso8601String(),
       'itemBreakdown': itemBreakdown,
       'competenciesMastered': itemBreakdown
           .where((item) => item['correct'] == true)

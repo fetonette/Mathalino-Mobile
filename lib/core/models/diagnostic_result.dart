@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Tier constants for the three-tier diagnostic placement system.
 ///
@@ -88,8 +87,8 @@ class DiagnosticResult {
   /// Full per-item breakdown for the [/student_results] document.
   final List<DiagnosticItemBreakdown> itemBreakdown;
 
-  /// Server-side Firestore timestamp set on successful write.
-  final Timestamp? diagnosticTimestamp;
+  /// Timestamp set on successful write.
+  final DateTime? diagnosticTimestamp;
 
   const DiagnosticResult({
     required this.correctAnswers,
@@ -223,8 +222,8 @@ class DiagnosticResult {
       if (cogPerf.isNotEmpty) 'cognitiveDomainPerformance': cogPerf,
       'questionResults': itemsList,
       'itemBreakdown': itemsList, // Dual-write alias
-      'timestamp': FieldValue.serverTimestamp(),
-      'completedAt': FieldValue.serverTimestamp(), // Dual-write alias
+      'timestamp': DateTime.now().toIso8601String(),
+      'completedAt': DateTime.now().toIso8601String(),
     };
   }
 
@@ -239,9 +238,9 @@ class DiagnosticResult {
         'diagnosticPercentage': percentage,
         'diagnosticCompleted': true,
         'diagnosticFlags': diagnosticFlags,
-        'diagnosticTimestamp': FieldValue.serverTimestamp(),
-        'diagnosticCompletedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'diagnosticTimestamp': DateTime.now().toIso8601String(),
+        'diagnosticCompletedAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
       };
 
   @override

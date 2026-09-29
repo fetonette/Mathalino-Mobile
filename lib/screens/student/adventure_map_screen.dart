@@ -34,10 +34,10 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
       final remediationProvider = context.read<RemediationProvider>();
 
       if (authService.user != null) {
-        await levelProvider.fetchProgress(authService.user!.uid);
+        await levelProvider.fetchProgress(authService.user!.id);
         if (mounted) {
-          remediationProvider.loadRemediation(authService.user!.uid);
-          levelProvider.subscribeToProfile(authService.user!.uid);
+          remediationProvider.loadRemediation(authService.user!.id);
+          levelProvider.subscribeToProfile(authService.user!.id);
           await authService.ensureProfileLoaded();
         }
       } else {
@@ -50,7 +50,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
         // ── One-time Welcome Modal ─────────────────────────────────────
         // Show once per UID (both new students from diagnostic and existing
         // students opening the map for the first time on this device).
-        final uid = authService.user?.uid;
+        final uid = authService.user?.id;
         if (uid != null) {
           await _checkAndShowWelcomeModal(
             uid: uid,
@@ -389,7 +389,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
             user:
                 profile ??
                 StudentProfile(
-                  uid: authService.user?.uid ?? '',
+                  uid: authService.user?.id ?? '',
                   lrn: '',
                   displayName: 'Student',
                   gradeLevel: 1,
@@ -424,7 +424,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
           user:
               profile ??
               StudentProfile(
-                uid: authService.user?.uid ?? '',
+                uid: authService.user?.id ?? '',
                 lrn: '',
                 displayName: 'Student',
                 gradeLevel: 1,

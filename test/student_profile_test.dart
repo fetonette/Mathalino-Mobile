@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mathalino_student_app/core/models/student_profile.dart';
@@ -110,7 +109,7 @@ void main() {
           'totalXp': 1000,
           'coins': 42,
           'streakDays': 7,
-          'lastActiveDate': Timestamp.fromDate(DateTime(2024, 1, 15)),
+          'lastActiveDate': DateTime(2024, 1, 15),
         },
       };
 

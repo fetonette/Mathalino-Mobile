@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Represents a single question's result in an assessment or gameplay attempt.
 class QuestionResultItem {
@@ -130,8 +129,8 @@ class StudentResult {
   final int? xpAwarded;
   final int? coinsAwarded;
   final Map<String, dynamic>? metadata;
-  final Timestamp? timestamp;
-  final Timestamp? completedAt;
+  final DateTime? timestamp;
+  final DateTime? completedAt;
 
   const StudentResult({
     required this.resultId,
@@ -174,6 +173,15 @@ class StudentResult {
   /// Backward-compatible getter for legacy code reading `itemBreakdown`.
   dynamic get itemBreakdown =>
       rawItemBreakdown ?? questionResults?.map((e) => e.toMap()).toList();
+
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    try { return (value as dynamic).toDate() as DateTime; } catch (_) { return null; }
+  }
+
 
   factory StudentResult.fromMap(Map<String, dynamic> map, String resultId) {
     final sId =
@@ -228,11 +236,7 @@ class StudentResult {
       });
     }
 
-    final ts = map['timestamp'] is Timestamp
-        ? map['timestamp'] as Timestamp
-        : (map['completedAt'] is Timestamp
-            ? map['completedAt'] as Timestamp
-            : null);
+    final ts = _parseDateTime(map['timestamp'] ?? map['completedAt']);
 
     return StudentResult(
       resultId: resultId,
@@ -284,20 +288,13 @@ class StudentResult {
     );
   }
 
-  factory StudentResult.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot, [
-    SnapshotOptions? options,
-  ]) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw FormatException(
-          'StudentResult document ${snapshot.id} contains null data');
-    }
-    return StudentResult.fromMap(data, snapshot.id);
-  }
+  /// Alias kept for backward compat; delegates to [fromMap].
+  static StudentResult fromFirestoreData(
+          Map<String, dynamic> data, String id) =>
+      StudentResult.fromMap(data, id);
+
 
   Map<String, dynamic> toMap() {
-    final sTimestamp = timestamp ?? FieldValue.serverTimestamp();
     final itemsList =
         questionResults?.map((e) => e.toMap()).toList() ?? rawItemBreakdown;
 
@@ -343,21 +340,8 @@ class StudentResult {
       if (xpAwarded != null) 'xpAwarded': xpAwarded,
       if (coinsAwarded != null) 'coinsAwarded': coinsAwarded,
       if (metadata != null) 'metadata': metadata,
-      'timestamp': sTimestamp,
-      'completedAt': sTimestamp, // Dual-write alias
+      'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
+      'completedAt': (completedAt ?? DateTime.now()).toIso8601String(),
     };
-  }
-
-  Map<String, dynamic> toFirestore([SetOptions? options]) {
-    return toMap();
-  }
-
-  /// Typed Firestore converter helper for the /student_results collection.
-  static CollectionReference<StudentResult> collection(
-      FirebaseFirestore firestore) {
-    return firestore.collection('student_results').withConverter<StudentResult>(
-          fromFirestore: (snapshot, _) => StudentResult.fromFirestore(snapshot),
-          toFirestore: (result, _) => result.toFirestore(),
-        );
   }
 }

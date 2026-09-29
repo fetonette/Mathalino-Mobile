@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// A badge in the global badge catalog, stored at `/badges/{badgeId}`.
 class Badge {
@@ -23,13 +22,6 @@ class Badge {
     );
   }
 
-  factory Badge.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    if (data == null) {
-      throw FormatException('Badge document ${doc.id} is empty');
-    }
-    return Badge.fromMap(data, doc.id);
-  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -53,18 +45,22 @@ class EarnedBadge {
   });
 
   factory EarnedBadge.fromMap(Map<String, dynamic> map, String badgeId) {
-    final earnedAt = map['earnedAt'];
+    final earnedAtRaw = map['earned_at'] ?? map['earnedAt'];
+    final earnedAt = earnedAtRaw is String
+        ? DateTime.tryParse(earnedAtRaw) ?? DateTime.now()
+        : DateTime.now();
     return EarnedBadge(
       badgeId: badgeId,
-      userId: map['userId']?.toString() ?? '',
-      earnedAt: earnedAt is Timestamp ? earnedAt.toDate() : DateTime.now(),
+      userId: map['user_id']?.toString() ?? map['userId']?.toString() ?? '',
+      earnedAt: earnedAt,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'userId': userId,
-      'earnedAt': Timestamp.fromDate(earnedAt),
+      'user_id': userId,
+      'badge_id': badgeId,
+      'earned_at': earnedAt.toIso8601String(),
     };
   }
 }

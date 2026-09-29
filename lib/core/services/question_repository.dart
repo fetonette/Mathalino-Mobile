@@ -13,24 +13,13 @@ library;
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/question.dart';
 
 class QuestionRepository {
-  QuestionRepository({FirebaseFirestore? firestore})
-    : _injectedFirestore = firestore;
-
-  final FirebaseFirestore? _injectedFirestore;
-  FirebaseFirestore? get _firestore {
-    if (_injectedFirestore != null) return _injectedFirestore;
-    try {
-      return FirebaseFirestore.instance;
-    } catch (_) {
-      return null;
-    }
-  }
+  QuestionRepository();
 
   // In-memory cache: grade → list of Question objects.
   final Map<int, List<Question>> _cache = {};
@@ -135,7 +124,7 @@ class QuestionRepository {
         final localVersion = _localVersions[grade];
         if (remoteVersion != null &&
             (localVersion == null || remoteVersion > localVersion)) {
-          final remote = await _loadFromFirestore(
+          final remote = await _loadFromSupabase(
             grade,
           ).timeout(const Duration(seconds: 4), onTimeout: () => []);
           if (remote.isNotEmpty) {
@@ -163,16 +152,16 @@ class QuestionRepository {
     }
   }
 
-  Future<List<Question>> _loadFromFirestore(int grade) async {
+  Future<List<Question>> _loadFromSupabase(int grade) async {
     try {
-      final snap = await _firestore
-          ?.collectionGroup('items')
-          .where('grade', isEqualTo: grade)
-          .where('isDigitallyPlayable', isEqualTo: true)
-          .get();
-      if (snap == null) return [];
-      return snap.docs
-          .map((d) => _questionFromJson({...d.data(), 'id': d.id}))
+      final rows = await Supabase.instance.client
+          .from('questions')
+          .select()
+          .eq('grade', grade)
+          .eq('is_digitally_playable', true)
+          .timeout(const Duration(seconds: 4));
+      return rows
+          .map((row) => _questionFromJson({...row, 'id': row['id']?.toString() ?? ''}))
           .toList();
     } catch (_) {
       return [];
@@ -181,11 +170,12 @@ class QuestionRepository {
 
   Future<int?> _remoteContentVersion(int grade) async {
     try {
-      final doc = await _firestore
-          ?.collection('question_bank_meta')
-          .doc('$grade')
-          .get();
-      return doc?.data()?['contentVersion'] as int?;
+      final row = await Supabase.instance.client
+          .from('question_bank_meta')
+          .select('content_version')
+          .eq('grade', grade)
+          .maybeSingle();
+      return row?['content_version'] as int?;
     } catch (_) {
       return null;
     }

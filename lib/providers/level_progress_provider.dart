@@ -1,12 +1,10 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:mathalino_student_app/core/constants/game_rules.dart';
 import 'package:mathalino_student_app/core/models/student_profile.dart';
-import 'package:mathalino_student_app/core/services/firestore_service.dart';
+import 'package:mathalino_student_app/core/services/supabase_service.dart';
 
 /// Enum representing the 4 possible visual states of a level node
 enum LevelState {
@@ -19,13 +17,7 @@ enum LevelState {
 /// Level Progress Provider for Mathalino Student App
 /// Manages level status for 60 levels across 3 zones (Zone 1: 1-20, Zone 2: 21-40, Zone 3: 41-60).
 class LevelProgressProvider extends ChangeNotifier {
-  FirebaseFirestore get _firestore {
-    try {
-      return FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'default');
-    } catch (e) {
-      return FirebaseFirestore.instance;
-    }
-  }
+  final SupabaseService _db = SupabaseService();
 
   int _currentLevel = 1;
   int _startingLevel = 1;
@@ -79,48 +71,13 @@ class LevelProgressProvider extends ChangeNotifier {
   Future<void> fetchProgress(String userId) async {
     _setLoading(true);
     try {
-      // 1. Dual-read: Try modular /student_progress/{userId} first
-      Map<String, dynamic>? progressData;
-      try {
-        final progressSnap =
-            await _firestore.collection('student_progress').doc(userId).get();
-        if (progressSnap.exists && progressSnap.data() != null) {
-          progressData = progressSnap.data();
-        }
-      } catch (err) {
-        debugPrint('[LevelProgressProvider] student_progress read fallback: $err');
-      }
-
-      // 2. Fetch /users/{userId} (profile anchor)
-      final docSnapshot =
-          await _firestore.collection('users').doc(userId).get();
-      if (docSnapshot.exists && docSnapshot.data() != null) {
-        final userData = docSnapshot.data()!;
-
-        // Merge progressData over userData (progressData takes precedence for progression)
-        final mergedData = {
-          ...userData,
-          ...?progressData,
-        };
-
-        _currentLevel = ((mergedData['currentLevel'] ??
-                    mergedData['level'] ??
-                    1) as num)
-            .toInt()
-            .clamp(1, 60);
-        _startingLevel =
-            ((mergedData['startingLevel'] ?? 1) as num).toInt().clamp(1, 60);
-
-        final rawStatusMap =
-            mergedData['levelStatusMap'] ?? mergedData['levelStatus'];
-        if (rawStatusMap is Map) {
-          _levelStatusMap = rawStatusMap.map(
-            (key, value) =>
-                MapEntry(int.tryParse(key.toString()) ?? 1, value.toString()),
-          );
-        }
-
-        _studentProfile = StudentProfile.fromMap(mergedData, userId);
+      // Fetch from users table (Supabase)
+      final profile = await _db.fetchStudentProfile(userId);
+      if (profile != null) {
+        _currentLevel = profile.currentLevel.clamp(1, 60);
+        _startingLevel = profile.startingLevel.clamp(1, 60);
+        _levelStatusMap = _stringKeyMapToInt(profile.levelStatusMap);
+        _studentProfile = profile;
       }
       _recalculateStatusMap();
     } catch (e) {
@@ -139,8 +96,7 @@ class LevelProgressProvider extends ChangeNotifier {
   void subscribeToProfile(String userId) {
     _profileSubscription?.cancel();
     try {
-      final service = FirestoreService(firestore: _firestore);
-      _profileSubscription = service.subscribeStudentProfile(userId).listen(
+      _profileSubscription = _db.subscribeStudentProfile(userId).listen(
         (profile) {
           _studentProfile = profile;
           _currentLevel = profile.currentLevel.clamp(1, 60);
@@ -247,7 +203,7 @@ class LevelProgressProvider extends ChangeNotifier {
   }
 
   /// Update a level's status and advance currentLevel if completed
-  Future<void> completeLevel(String userId, int level) async {
+  Future<void> completeLevel(String userId, int level, {String? lrn}) async {
     if (level < 1 || level > 60) return;
 
     _levelStatusMap[level] = 'completed';
@@ -260,15 +216,17 @@ class LevelProgressProvider extends ChangeNotifier {
 
     notifyListeners();
 
-    // Sync to Firestore
+    // Sync to Supabase
     try {
       final stringKeyMap = _levelStatusMap.map((k, v) => MapEntry(k.toString(), v));
-      await _firestore.collection('users').doc(userId).set({
-        'currentLevel': _currentLevel,
-        'levelStatus': stringKeyMap,
-      }, SetOptions(merge: true));
+      final resolvedLrn = (lrn != null && lrn.isNotEmpty) ? lrn : (_studentProfile?.lrn ?? '');
+      await _db.updateUserFields(userId, {
+        if (resolvedLrn.isNotEmpty) 'lrn': resolvedLrn,
+        'current_level': _currentLevel,
+        'level_status_map': stringKeyMap,
+      });
     } catch (e) {
-      debugPrint('[LevelProgressProvider] Firestore sync error: $e');
+      debugPrint('[LevelProgressProvider] Supabase sync error: $e');
     }
   }
 

@@ -47,7 +47,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final userId = authService.user?.uid ?? authService.studentProfile?.uid;
+      final userId = authService.user?.id ?? authService.studentProfile?.uid;
 
       if (userId == null || userId.isEmpty) {
         setState(() {
@@ -114,7 +114,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final userId = authService.user?.uid ?? authService.studentProfile?.uid;
+      final userId = authService.user?.id ?? authService.studentProfile?.uid;
 
       if (userId == null || userId.isEmpty) {
         setState(() {

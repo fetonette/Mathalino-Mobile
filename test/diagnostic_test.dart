@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mathalino_student_app/core/constants/diagnostic_questions.dart';
 import 'package:mathalino_student_app/core/errors/diagnostic_exception.dart';
@@ -432,7 +431,7 @@ void main() {
         'competenciesMastered': ['M1NS'],
         'competenciesToDevelop': ['M2NS'],
         'metadata': {'placementCategory': 'Advanced'},
-        'timestamp': Timestamp.now(),
+        'DateTime': DateTime.now(),
       };
 
       final result = StudentResult.fromMap(map, 'result_456');
@@ -493,7 +492,7 @@ void main() {
 
   group('StudentProfile UpdatedAt Field', () {
     test('fromMap parses updatedAt when present', () {
-      final ts = Timestamp.now();
+      final ts = DateTime.now();
       final map = {
         'lrn': '123456789012',
         'name': 'Test Student',
@@ -530,7 +529,7 @@ void main() {
     });
 
     test('toMap includes updatedAt field', () {
-      final ts = Timestamp.now();
+      final ts = DateTime.now();
       final profile = StudentProfile(
         uid: 'uid_789',
         lrn: '123456789012',

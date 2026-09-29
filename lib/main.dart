@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     hide ChangeNotifierProvider;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/models/student_profile.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/auth_service.dart';
@@ -25,11 +26,15 @@ import 'screens/student/remediation_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with per-platform options.
-  // On Android this matches the credentials auto-loaded from
-  // google-services.json (avoids [core/duplicate-app]); on web it uses
-  // the web configuration.
+  // Initialize Firebase — kept only for Firebase Cloud Messaging (push notifications).
+  // All database and auth operations now use Supabase.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Supabase — the primary database and auth provider.
+  await Supabase.initialize(
+    url: 'https://vaggqgmluporwzxhtnax.supabase.co',
+    publishableKey: 'sb_publishable_yeiJ9tobwcYXBGaMCa2cEw_uVb1Pod9',
+  );
 
   runApp(const ProviderScope(child: MathalinoApp()));
 }

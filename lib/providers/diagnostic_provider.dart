@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/errors/diagnostic_exception.dart';
@@ -8,7 +7,7 @@ import '../core/models/question.dart';
 import '../core/models/student_profile.dart';
 import '../core/services/diagnostic_assessment_service.dart';
 import '../core/services/diagnostic_question_service.dart';
-import '../core/services/firestore_service.dart';
+import '../core/services/supabase_service.dart';
 import '../core/services/game_logic_service.dart';
 import '../core/services/scoring_service.dart';
 
@@ -20,19 +19,19 @@ import '../core/services/scoring_service.dart';
 /// `startingLevel`, `currentLevel`, and `diagnosticCompleted` to the student's
 /// /users/{userId} Firestore document.
 class DiagnosticProvider extends ChangeNotifier {
-  final FirestoreService _firestoreService;
+  final SupabaseService _db;
   final DiagnosticQuestionService _diagnosticQuestionService;
   final ScoringService _scoringService;
   final DiagnosticAssessmentService _assessmentService;
   final GameLogicService _gameLogic;
 
   DiagnosticProvider({
-    FirestoreService? firestoreService,
+    SupabaseService? db,
     DiagnosticQuestionService? diagnosticQuestionService,
     ScoringService? scoringService,
     DiagnosticAssessmentService? assessmentService,
     GameLogicService? gameLogic,
-  }) : _firestoreService = firestoreService ?? FirestoreService(),
+  }) : _db = db ?? SupabaseService(),
        _diagnosticQuestionService =
            diagnosticQuestionService ?? DiagnosticQuestionService(),
        _scoringService = scoringService ?? ScoringService(),
@@ -222,20 +221,18 @@ class DiagnosticProvider extends ChangeNotifier {
         itemBreakdown: const [],
       );
 
-      // 2. Write the placement back to /users/{userId}.
-      await _firestoreService.updateUserFieldsInTransaction(userId, {
-        'assignedCategory': score.category,
-        'assignedTier': score.category,
-        'startingLevel': score.startingLevel,
-        'currentLevel': score.startingLevel,
-        'contentPool': score.contentPool,
-        'diagnosticScore': score.correctAnswers,
-        'diagnosticPercentage': score.percentage,
-        'diagnosticCompleted': true,
-        'usedQuestionsHistory': FieldValue.arrayUnion(
-          _questions.map((q) => q.id).toList(),
-        ),
-      });
+      // 2. Persist placement using SupabaseService normalized multi-table helper
+      await _db.saveDiagnosticPlacement(
+        userId: userId,
+        lrn: currentProfile.lrn,
+        category: score.category,
+        startingLevel: score.startingLevel,
+        contentPool: score.contentPool,
+        score: score.correctAnswers,
+        percentage: score.percentage,
+        usedQuestions: _questions.map((q) => q.id).toList(),
+        diagnosticResult: diagnosticResult,
+      );
 
       _diagnosticResult = diagnosticResult;
       _placementResult = placement;
@@ -243,15 +240,8 @@ class DiagnosticProvider extends ChangeNotifier {
       return placement;
     } on DiagnosticException {
       rethrow;
-    } on FirebaseException catch (e) {
-      debugPrint('[DiagnosticProvider] submitDiagnostic Firestore error: $e');
-      _errorMessage = 'Failed to submit diagnostic: ${e.message ?? e.code}';
-      throw DiagnosticException(
-        'Failed to submit diagnostic: ${e.message ?? e.code}',
-        code: e.code,
-        originalError: e,
-      );
     } catch (e) {
+      debugPrint('[DiagnosticProvider] submitDiagnostic error: $e');
       _errorMessage = 'Failed to submit diagnostic: $e';
       throw DiagnosticException(
         'Failed to submit diagnostic: $e',

@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/question_shuffle_service.dart';
 
 /// Represents an individual choice option with its stable ID, display position,
@@ -254,19 +253,9 @@ class QuestionModel {
     );
   }
 
-  /// Typed Firestore converter entrypoint.
-  factory QuestionModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot, [
-    SnapshotOptions? options,
-  ]) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw FormatException(
-        'QuestionModel document ${snapshot.id} contains null data',
-      );
-    }
-    return QuestionModel.fromMap(data, snapshot.id);
-  }
+  /// Alias kept for backward-compat call sites; use [fromMap] directly.
+  static QuestionModel fromFirestoreData(Map<String, dynamic> data, String id) =>
+      QuestionModel.fromMap(data, id);
 
   /// Serialises back to the Firestore schema (used by the seeded/bundled
   /// bank and for constructing test fixtures).
@@ -288,7 +277,8 @@ class QuestionModel {
     };
   }
 
-  Map<String, dynamic> toFirestore([SetOptions? options]) => toMap();
+  /// Alias for [toMap] kept for backward compat.
+  Map<String, dynamic> toFirestore([dynamic options]) => toMap();
 
   /// Whether the given submitted answer (a choice key or value) is correct.
   ///

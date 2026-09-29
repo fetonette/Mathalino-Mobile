@@ -1,10 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import '../errors/diagnostic_exception.dart';
 import '../models/diagnostic_result.dart';
 import '../models/question.dart';
+import 'supabase_service.dart';
 
 /// Threshold below which a per-competency score is flagged as "Needs Attention".
 /// Only applied for Foundation-tier students (Rule I). Teacher-visible only.
@@ -22,7 +21,7 @@ const double _kNeedsAttentionThreshold = 0.50;
 ///    - Rule II : `50 <= S <= 79` → Intermediate (Level 21)
 ///    - Rule III: `S >= 80`       → Advanced     (Level 41)
 ///    Additionally flags competencies with per-score < 50% for Rule I students.
-/// 4. **Firestore write** — uses a batched write (both documents in one round-trip)
+/// 4. **Supabase write** — persists normalized assessment and progress data
 ///    guarded by an idempotency check.
 ///
 /// Usage:
@@ -36,28 +35,18 @@ const double _kNeedsAttentionThreshold = 0.50;
 /// );
 /// ```
 class DiagnosticScoringService {
-  /// Optional injected Firestore instance. When null, [FirebaseFirestore.instance]
-  /// is used lazily the first time [_persistResult] is called, so tests can
-  /// construct this service without a running Firebase app.
-  final FirebaseFirestore? _injectedFirestore;
+  final SupabaseService _supabaseService;
 
-  DiagnosticScoringService({FirebaseFirestore? firestore})
-      : _injectedFirestore = firestore;
-
-  FirebaseFirestore get _firestore =>
-      _injectedFirestore ??
-      FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: 'default',
-      );
+  DiagnosticScoringService({SupabaseService? supabaseService})
+      : _supabaseService = supabaseService ?? SupabaseService();
 
   // ── Public API ───────────────────────────────────────────────────────
 
   /// Evaluates the student's answers, determines their tier, and atomically
-  /// persists the result to Firestore.
+  /// persists the result to Supabase.
   ///
   /// **Parameters**
-  /// - [userId] — the Firebase Auth UID of the student.
+  /// - [userId] — the Supabase Auth UID of the student.
   /// - [questions] — the ordered list of N diagnostic [Question] objects
   ///   (answer key `K`). Must be non-empty.
   /// - [answers] — the student's submitted answers, one entry per question
@@ -69,7 +58,7 @@ class DiagnosticScoringService {
   ///
   /// **Returns** the computed [DiagnosticResult].
   ///
-  /// **Throws** [DiagnosticException] for validation failures or Firestore
+  /// **Throws** [DiagnosticException] for validation failures or database
   /// errors, with a user-friendly [DiagnosticException.message] and an optional
   /// [DiagnosticException.code].
   Future<DiagnosticResult> evaluateAndAssignTier({
@@ -133,7 +122,7 @@ class DiagnosticScoringService {
       itemBreakdown: itemBreakdown,
     );
 
-    // ── Step 4: Atomic Firestore Write ────────────────────────────────
+    // ── Step 4: Persist to Supabase ────────────────────────────────
     await _persistResult(
       userId: userId,
       questions: questions,
@@ -282,125 +271,55 @@ class DiagnosticScoringService {
 
   // ── Step 4 helpers ───────────────────────────────────────────────────
 
-  /// Performs an atomic batched write:
-  /// - Updates `/users/{userId}` (merge) with tier assignment and flags.
-  /// - Creates a new document in `/student_results` with the full breakdown.
-  ///
-  /// Uses [WriteBatch] so both writes succeed or fail together, preventing
-  /// partial updates if the app crashes mid-write.
+  /// Persists diagnostic placement and assessment records to Supabase:
+  /// - Updates `student_progress` and `student_assessments`.
+  /// - Creates a new row in `student_results` with full breakdown.
   Future<void> _persistResult({
     required String userId,
     required List<Question> questions,
     required DiagnosticResult result,
   }) async {
     try {
-      final batch = _firestore.batch();
+      final questionIds = questions.map((q) => q.id).toList();
 
-      // Write 1: merge diagnostic fields into /users/{userId}
-      final userRef = _firestore.collection('users').doc(userId);
-      batch.set(
-        userRef,
-        {
-          ...result.toUserProfileFields(),
-          'usedQuestionsHistory': FieldValue.arrayUnion(
-            questions.map((q) => q.id).toList(),
-          ),
-        },
-        SetOptions(merge: true),
+      await _supabaseService.saveDiagnosticPlacement(
+        userId: userId,
+        lrn: '',
+        category: result.assignedTier,
+        startingLevel: result.startingLevel,
+        contentPool: result.contentPoolLabel,
+        score: result.correctAnswers,
+        percentage: result.percentage,
+        usedQuestions: questionIds,
+        diagnosticResult: result,
       );
 
-      // Write 2: create a new /student_results document
-      final resultRef = _firestore.collection('student_results').doc();
-      batch.set(resultRef, {
-        'studentId': userId,
-        'userId': userId, // Dual-write alias
-        // Store the exact 20 questionIds issued for this attempt so the
-        // diagnostic responses can be audited later.
-        'questionIds': questions.map((q) => q.id).toList(),
-        ...result.toStudentResultMap(),
-      });
-
-      // Write 3: dual-write baseline assessment to /student_assessments/{userId}
-      final assessmentRef = _firestore.collection('student_assessments').doc(userId);
-      batch.set(
-        assessmentRef,
-        {
-          'diagnostic': {
-            'completed': true,
-            'score': result.correctAnswers,
-            'maxScore': result.totalItems,
-            'percentage': result.percentage,
-            'assignedTier': result.assignedTier,
-            'contentPool': result.contentPoolLabel,
-            'startingLevel': result.startingLevel,
-            'flags': result.diagnosticFlags,
-            'competencyScores': result.competencyScores,
-            'completedAt': FieldValue.serverTimestamp(),
-          },
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      // Write 4: initialize /student_progress/{userId} with starting level
-      final progressRef = _firestore.collection('student_progress').doc(userId);
-      batch.set(
-        progressRef,
-        {
-          'startingLevel': result.startingLevel,
-          'currentLevel': result.startingLevel,
-          'levelStatusMap': {
-            '${result.startingLevel}': 'unlocked',
-          },
-          'usedQuestionsHistory': FieldValue.arrayUnion(
-            questions.map((q) => q.id).toList(),
-          ),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      await batch.commit();
-
-      debugPrint(
-        '[DiagnosticScoringService] Batch write succeeded. '
-        'resultId: ${resultRef.id}, tier: ${result.assignedTier}, startingLevel: ${result.startingLevel}',
-      );
-    } on FirebaseException catch (e) {
-      debugPrint('[DiagnosticScoringService] Firestore batch error: $e');
+      debugPrint('[DiagnosticScoringService] _persistResult: writes complete for $userId');
+    } catch (e, st) {
+      debugPrint('[DiagnosticScoringService] _persistResult error: $e\n$st');
       throw DiagnosticException(
-        'Failed to save diagnostic result: ${e.message ?? e.code}. '
-        'Please try again.',
-        code: e.code,
-        originalError: e,
-      );
-    } catch (e) {
-      debugPrint('[DiagnosticScoringService] Unexpected error: $e');
-      throw DiagnosticException(
-        'An unexpected error occurred while saving the result. Please retry.',
+        'Failed to save diagnostic result. Please try again.',
         originalError: e,
       );
     }
   }
 }
 
-// ── Private helpers ──────────────────────────────────────────────────────────
-
-/// Mutable accumulator used during per-competency scoring.
-class _CompetencyCount {
-  int correct = 0;
-  int total = 0;
-}
-
-/// Intermediate score data returned from [_calculateScores].
+/// Private data carrier returned by [_calculateScores].
 class _ScoreData {
   final int correctAnswers;
   final Map<String, double> competencyScores;
   final List<DiagnosticItemBreakdown> itemBreakdown;
 
-  const _ScoreData({
+  _ScoreData({
     required this.correctAnswers,
     required this.competencyScores,
     required this.itemBreakdown,
   });
+}
+
+/// Mutable accumulator for per-competency correct/total counts.
+class _CompetencyCount {
+  int correct = 0;
+  int total = 0;
 }

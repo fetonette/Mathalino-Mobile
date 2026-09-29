@@ -52,7 +52,7 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
     final diagnosticProvider = context.read<DiagnosticProvider>();
     final authService = context.read<AuthService>();
     final profile = authService.studentProfile;
-    final userId = profile?.uid ?? authService.user?.uid ?? '';
+    final userId = profile?.uid ?? authService.user?.id ?? '';
 
     final isComplete = diagnosticProvider.answerCurrentQuestion(answer);
 

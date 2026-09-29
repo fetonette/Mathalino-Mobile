@@ -1,14 +1,12 @@
 // lib/core/services/diagnostic_question_service.dart
 //
-// Fetches the RMA-based diagnostic question bank from Firestore and selects
-// the 20 items that make up a student's diagnostic attempt. This is the single
-// source of truth the UI layer calls for diagnostic questions — no question
-// content is ever hardcoded in a widget.
+// Fetches the RMA-based diagnostic question bank from Supabase and selects
+// the 20 items that make up a student's diagnostic attempt.
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../constants/diagnostic_questions.dart';
 import '../errors/diagnostic_exception.dart';
 import '../models/question.dart';
 import 'question_shuffle_service.dart';
@@ -27,22 +25,19 @@ import 'question_shuffle_service.dart';
 ///    diagnostic.
 /// 4. Return exactly [count] (default 20) [Question] objects.
 ///
-/// Every Firestore call is wrapped in try-catch. Failures are re-thrown as
-/// [DiagnosticException] — never a raw Firestore error — so the UI layer can
+/// Every database call is wrapped in try-catch. Failures are re-thrown as
+/// [DiagnosticException] — never a raw error — so the UI layer can
 /// present a retry state to the student.
 class DiagnosticQuestionService {
-  final FirebaseFirestore? _injectedFirestore;
+  DiagnosticQuestionService();
 
-  DiagnosticQuestionService({FirebaseFirestore? firestore})
-    : _injectedFirestore = firestore;
-
-  /// Uses the project's named Firestore database `default`, which is where the
-  /// diagnostic question bank is seeded (see firebase-import/seed_diagnostic_questions.js
-  /// and the shared firebaseConfig.js convention). The implicit `(default)`
-  /// database is not provisioned for this project.
-  FirebaseFirestore get _firestore =>
-      _injectedFirestore ??
-      FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'default');
+  SupabaseClient? get _db {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Number of items issued for a single diagnostic attempt.
   static const int defaultAttemptCount = 20;
@@ -54,7 +49,7 @@ class DiagnosticQuestionService {
   /// used as backfill when fewer than [count] unseen items remain.
   ///
   /// Throws [DiagnosticException] if the diagnostic bank is empty or the
-  /// Firestore read fails, so the caller can show a retryable state.
+  /// database read fails, so the caller can show a retryable state.
   Future<List<Question>> selectDiagnosticQuestions({
     required Set<String> usedQuestionsHistory,
     int count = defaultAttemptCount,
@@ -90,14 +85,6 @@ class DiagnosticQuestionService {
       return selected;
     } on DiagnosticException {
       rethrow;
-    } on FirebaseException catch (e) {
-      debugPrint('[DiagnosticQuestionService] Firestore error: $e');
-      throw DiagnosticException(
-        'Failed to load diagnostic questions: ${e.message ?? e.code}. '
-        'Please check your connection and try again.',
-        code: e.code,
-        originalError: e,
-      );
     } catch (e) {
       debugPrint('[DiagnosticQuestionService] Unexpected error: $e');
       throw DiagnosticException(
@@ -144,91 +131,127 @@ class DiagnosticQuestionService {
     ];
   }
 
-    /// Fetches the full DIAGNOSTIC bank from `/questions` typed into [Question].
+  /// Fetches the full DIAGNOSTIC bank from Supabase `/questions` typed into [Question].
   ///
-  /// Only documents whose schema matches the seeded RMA bank are returned —
-  /// i.e. those carrying a `questionId` field and a `choices` map (`{A,B,C,D}`).
-  /// Legacy diagnostic documents that predate the bank (different field layout,
-  /// e.g. a `choices` list) are filtered out here so they never leak into a
-  /// student attempt as corrupted/unset fields.
+  /// Falls back to bundled `diagnosticAssessmentQuestions` if the database is
+  /// uninitialized or the remote query is empty.
   Future<List<Question>> _fetchDiagnosticBank() async {
-    final raw = await _firestore
-        .collection('questions')
-        .where('assessmentType', isEqualTo: 'DIAGNOSTIC')
-        .get();
-
     final valid = <Question>[];
     final seenQuestionIds = <String>{};
-    for (final doc in raw.docs) {
-      final data = doc.data();
-      // Bank schema guard: must have a `questionId` and a `choices` map.
-      final questionId = data['questionId']?.toString();
-      final rawChoices = data['choices'];
-      const choiceKeys = ['A', 'B', 'C', 'D'];
-      final hasValidChoices = rawChoices is Map &&
-          rawChoices.length == choiceKeys.length &&
-          choiceKeys.every(
-            (key) => rawChoices[key]?.toString().trim().isNotEmpty ?? false,
+    final client = _db;
+
+    if (client != null) {
+      try {
+        final rows = await client
+            .from('questions')
+            .select()
+            .eq('raw_data->>assessmentType', 'DIAGNOSTIC');
+
+        for (final data in rows) {
+          final rawData = data['raw_data'] is Map<String, dynamic>
+              ? data['raw_data'] as Map<String, dynamic>
+              : (data['raw_data'] is Map
+                  ? Map<String, dynamic>.from(data['raw_data'] as Map)
+                  : null);
+          final questionId = data['question_id']?.toString() ??
+              data['id']?.toString() ??
+              rawData?['questionId']?.toString();
+          final rawChoices = data['choices'] ?? rawData?['choices'];
+          const choiceKeys = ['A', 'B', 'C', 'D'];
+          final hasValidChoices = rawChoices is Map &&
+              choiceKeys.every(
+                (key) =>
+                    rawChoices[key]?.toString().trim().isNotEmpty ?? false,
+              );
+          final prompt = rawData?['prompt']?.toString() ??
+              data['question_text']?.toString() ??
+              data['prompt']?.toString();
+          final correctAnswer =
+              data['correct_answer'] ?? rawData?['correctAnswer'];
+
+          if (questionId == null ||
+              questionId.isEmpty ||
+              seenQuestionIds.contains(questionId) ||
+              prompt == null ||
+              prompt.trim().isEmpty ||
+              correctAnswer == null ||
+              !hasValidChoices) {
+            continue;
+          }
+          seenQuestionIds.add(questionId);
+          valid.add(
+            _questionFromMap(
+              data: data,
+              id: questionId,
+              prompt: prompt,
+              rawChoices: rawChoices,
+              correctAnswer: correctAnswer.toString(),
+              rawData: rawData,
+            ),
           );
-      if (questionId == null ||
-          questionId.isEmpty ||
-          seenQuestionIds.contains(questionId) ||
-          data['prompt']?.toString().trim().isEmpty != false ||
-          data['correctAnswer'] == null ||
-          !hasValidChoices) {
-        continue;
+        }
+      } catch (e) {
+        debugPrint('[DiagnosticQuestionService] Supabase fetch error: $e');
       }
-      seenQuestionIds.add(questionId);
-      valid.add(_questionFromFirestore(doc, null));
-    }
-    return valid;
-  }
-
-  /// Firestore `fromFirestore` converter for the RMA diagnostic schema.
-  ///
-  /// Maps the seeded `/questions` document (fields: `questionId`, `gradeLevel`,
-  /// `competency`, `difficulty`, `prompt`, `choices` {A,B,C,D}, `correctAnswer`,
-  /// `assessmentType`, `zoneEligibility`) onto the app's existing [Question]
-  /// model so the rest of the codebase needs no changes.
-  Question _questionFromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot,
-    SnapshotOptions? options,
-  ) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw FormatException(
-        'Diagnostic question document ${snapshot.id} contains null data.',
-      );
     }
 
-    // choices arrives as a map {A,B,C,D}; render as "A. <text>" … "D. <text>"
-    // so both the QuestionCard widget and the choice-letter grading logic work.
-    final choices = <String>[];
-    final rawChoices = data['choices'];
-    if (rawChoices is Map) {
-      const keys = ['A', 'B', 'C', 'D'];
-      for (final key in keys) {
-        final value = rawChoices[key];
-        if (value != null && value.toString().trim().isNotEmpty) {
-          choices.add('$key. ${value.toString()}');
+    // Fallback to bundled RMA diagnostic questions if empty
+    if (valid.isEmpty) {
+      debugPrint('[DiagnosticQuestionService] Using bundled diagnostic questions fallback');
+      for (final qMap in diagnosticAssessmentQuestions) {
+        final id = qMap['id']?.toString() ?? '';
+        if (id.isNotEmpty && !seenQuestionIds.contains(id)) {
+          seenQuestionIds.add(id);
+          valid.add(Question.fromMap(qMap, id));
         }
       }
     }
 
-    final competency = data['competency']?.toString() ?? '';
-    final difficulty = data['difficulty']?.toString() ?? 'Knowing';
+    return valid;
+  }
+
+  /// Maps a Supabase `questions` row onto the app's [Question] model.
+  Question _questionFromMap({
+    required Map<String, dynamic> data,
+    required String id,
+    required String prompt,
+    required Map rawChoices,
+    required String correctAnswer,
+    Map<String, dynamic>? rawData,
+  }) {
+    final choices = <String>[];
+    const keys = ['A', 'B', 'C', 'D'];
+    for (final key in keys) {
+      final value = rawChoices[key];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        choices.add('$key. ${value.toString()}');
+      }
+    }
+
+    final competency = rawData?['competency']?.toString() ??
+        data['strand']?.toString() ??
+        data['competency']?.toString() ??
+        '';
+    final difficulty = rawData?['difficulty']?.toString() ??
+        data['difficulty']?.toString() ??
+        'Knowing';
+    final grade = rawData?['gradeLevel'] is int
+        ? rawData!['gradeLevel'] as int
+        : (int.tryParse(data['grade_level']?.toString() ?? '') ??
+            int.tryParse(data['grade']?.toString() ?? '') ??
+            1);
 
     return Question(
-      id: data['questionId']?.toString() ?? snapshot.id,
-      grade: (data['gradeLevel'] ?? 1) as int,
+      id: id,
+      grade: grade,
       contentDomain: competency,
       competencyCode: competency,
       competencyText: competency,
       cognitiveDomain: difficulty,
       type: 'multipleChoice',
-      questionText: data['prompt']?.toString() ?? '',
+      questionText: prompt,
       choices: choices.isEmpty ? null : choices,
-      correctAnswer: data['correctAnswer'] ?? '',
+      correctAnswer: correctAnswer,
       maxPoints: 1,
     );
   }

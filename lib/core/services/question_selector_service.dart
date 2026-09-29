@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/question.dart';
 import 'question_repository.dart';
 
@@ -11,33 +11,9 @@ import 'question_repository.dart';
 /// history. Also supports remediation-specific filtering by competency
 /// code and explicit question exclusions.
 class QuestionSelectorService {
-  final FirebaseFirestore? _injectedFirestore;
-
-  QuestionSelectorService({FirebaseFirestore? firestore})
-      : _injectedFirestore = firestore;
-
-  FirebaseFirestore? _resolvedFirestore;
-
-  FirebaseFirestore? get _db {
-    if (_injectedFirestore != null) return _injectedFirestore;
-    try {
-      _resolvedFirestore ??= FirebaseFirestore.instance;
-      return _resolvedFirestore;
-    } catch (_) {
-      return null;
-    }
-  }
+  QuestionSelectorService();
 
   /// Selects questions for a given level and content pool.
-  ///
-  /// [level] - The current level being played (contains difficulty + levelNumber).
-  /// [contentPool] - List of competency codes or content domains to filter by.
-  /// [usedQuestionsHistory] - Question IDs already answered by the student (excluded).
-  /// [zone] - Zone number (1, 2, or 3) used to infer grade band.
-  /// [competencyCode] - Optional specific competency code filter (used in remediation).
-  /// [excludeQuestionIds] - Optional additional question IDs to exclude (e.g. the
-  ///   previously failed question during remediation challenge).
-  /// [limit] - Maximum number of questions to return.
   Future<List<Question>> selectQuestions({
     required Level level,
     required List<String> contentPool,
@@ -47,64 +23,52 @@ class QuestionSelectorService {
     List<String>? excludeQuestionIds,
     int limit = 5,
   }) async {
-    final firestore = _db;
-    if (firestore != null) {
-      try {
-        // Build the base query against the /questions collection.
-        Query query = firestore.collection('questions');
-
-      // 1. Filter by grade band derived from the zone.
+    try {
+      // Build query against the Supabase `questions` table.
       final (gradeStart, gradeEnd) = _gradeBandForZone(zone);
-      query = query.where('grade', isGreaterThanOrEqualTo: gradeStart);
-      query = query.where('grade', isLessThanOrEqualTo: gradeEnd);
+      var query = Supabase.instance.client
+          .from('questions')
+          .select()
+          .gte('grade', gradeStart)
+          .lte('grade', gradeEnd);
 
-      // 2. Filter by specific competency code if provided (e.g. remediation).
+      // Apply competency filter if specific code or competency-based content pool
       if (competencyCode != null && competencyCode.isNotEmpty) {
-        query = query.where('competencyCode', isEqualTo: competencyCode);
-      } else if (contentPool.isNotEmpty) {
-        // Only apply whereIn if contentPool contains actual competency codes (not grade labels)
-        final isCompetencyList = contentPool.every((c) => !c.toLowerCase().startsWith('grade '));
-        if (isCompetencyList && contentPool.length <= 10) {
-          query = query.where('competencyCode', whereIn: contentPool);
-        }
+        query = query.eq('competency_code', competencyCode);
       }
 
-      // 3. Apply limit (fetch a bit more to allow for exclusions).
-      query = query.limit(limit + usedQuestionsHistory.length + (excludeQuestionIds?.length ?? 0) + 10);
+      final rows = await query.limit(
+        limit + usedQuestionsHistory.length + (excludeQuestionIds?.length ?? 0) + 10,
+      );
 
-      final snapshot = await query.get();
-
-      // 4. Build the exclusion set.
+      // Build the exclusion set.
       final excludedIds = <String>{
         ...usedQuestionsHistory,
         ...?excludeQuestionIds,
       };
 
-      // 5. Filter out used/excluded questions and map to Question objects.
-      final questions = snapshot.docs
-          .map((doc) => Question.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>))
+      final questions = rows
+          .map((row) => Question.fromMap(row, row['id']?.toString() ?? ''))
           .where((q) => !excludedIds.contains(q.id))
           .toList();
 
-      // 6. Shuffle to randomize selection order.
       questions.shuffle();
 
       if (questions.isNotEmpty) {
         return questions.take(limit).toList();
       }
     } catch (e) {
-      debugPrint('[QuestionSelectorService] Firestore query error, attempting local fallback: $e');
+      debugPrint('[QuestionSelectorService] Supabase query error, attempting local fallback: $e');
     }
-  }
 
-    // 7. Fallback to QuestionRepository if Firestore query returns empty or fails
+    // Fallback to QuestionRepository (local JSON assets)
     try {
       final (gradeStart, gradeEnd) = _gradeBandForZone(zone);
       final excludedIds = <String>{
         ...usedQuestionsHistory,
         ...?excludeQuestionIds,
       };
-      final repo = QuestionRepository(firestore: _injectedFirestore);
+      final repo = QuestionRepository();
       return await repo.selectLevelQuestions(
         minGrade: gradeStart,
         maxGrade: gradeEnd,

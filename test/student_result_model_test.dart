@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mathalino_student_app/core/models/student_result_model.dart';
 
@@ -71,7 +70,7 @@ void main() {
 
   group('StudentResult Model — Modern & Expanded Fields', () {
     test('serializes and deserializes math and cognitive domain rollups', () {
-      final ts = Timestamp.now();
+      final ts = DateTime.now();
       final modernResult = StudentResult(
         resultId: 'res_001',
         studentId: 'student_xyz',
@@ -156,7 +155,7 @@ void main() {
         'score': 1,
         'totalQuestions': 1,
         'competencyCode': 'M1NS-Ia-1',
-        'completedAt': Timestamp.now(),
+        'completedAt': DateTime.now(),
       };
 
       final parsed = StudentResult.fromMap(legacyRemediationMap, 'remed_doc_1');
@@ -178,7 +177,7 @@ void main() {
         'userId': 'daily_user',
         'assessmentType': 'DAILY_CHALLENGE',
         'date': '2026-09-20',
-        'completedAt': Timestamp.now(),
+        'completedAt': DateTime.now(),
         'totalQuestions': 5,
         'correctCount': 4,
         'pointsEarned': 4,
@@ -262,7 +261,7 @@ void main() {
             'studentAnswer': 'B',
           }
         ],
-        'timestamp': Timestamp.now(),
+        'DateTime': DateTime.now(),
       };
 
       final parsed = StudentResult.fromMap(legacyDiagMap, 'diag_doc_1');

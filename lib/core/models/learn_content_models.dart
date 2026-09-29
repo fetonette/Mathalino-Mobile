@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Top-level container representing the full Learn Content Package (schema 2.0).
 class LearnContentPackage {
@@ -115,19 +114,6 @@ class GradeLearnContent {
     }
   }
 
-  static CollectionReference<GradeLearnContent> collection(
-      FirebaseFirestore firestore) {
-    return firestore.collection('learn_content').withConverter<GradeLearnContent>(
-      fromFirestore: (snapshot, _) {
-        final data = snapshot.data();
-        if (data == null) {
-          throw StateError('Learn content document is empty: ${snapshot.id}');
-        }
-        return GradeLearnContent.fromJson(data);
-      },
-      toFirestore: (value, _) => value.toJson(),
-    );
-  }
 }
 
 /// Represents one of the 4 curriculum modules (Number Sense, Operations, Fractions, Geometry).

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Question Model representing documents in the /questions collection
 class Question {
@@ -59,13 +58,6 @@ class Question {
     );
   }
 
-  factory Question.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, [SnapshotOptions? options]) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw FormatException('Question document ${snapshot.id} contains null data');
-    }
-    return Question.fromMap(data, snapshot.id);
-  }
 
   Map<String, dynamic> toMap() {
     return {

@@ -1,26 +1,25 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
+import 'package:supabase_flutter/supabase_flutter.dart' as supa show AuthException;
 
 import '../errors/auth_exception.dart';
 import '../models/student_profile.dart';
-import 'firestore_service.dart';
+import 'supabase_service.dart';
 
 /// Authentication Service for Mathalino Student App
-/// Handles LRN to Firebase Auth email mapping, Firestore typed converter queries,
+/// Handles LRN to Supabase Auth email mapping, profile loading,
 /// role verification, and custom exception handling.
+/// Firebase is kept only for push notification tokens (firebase_messaging).
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient? _injectedClient;
+  final SupabaseService _db;
 
-  FirebaseFirestore get _firestore {
-    try {
-      return FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'default');
-    } catch (e) {
-      return FirebaseFirestore.instance;
-    }
+  SupabaseClient get _supabase {
+    final client = _injectedClient;
+    if (client != null) return client;
+    return Supabase.instance.client;
   }
 
   User? _user;
@@ -35,38 +34,53 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
 
-  AuthService() {
-    _user = _auth.currentUser;
-    _auth.authStateChanges().listen((User? user) {
-      _user = user;
-      if (user == null) {
-        _studentProfile = null;
-        stopProfileSubscription();
-      } else {
-        // Persisted session (app restart): load the student's details from
-        // Firestore so the Profile UI never shows empty/placeholder data.
-        ensureProfileLoaded();
-      }
-      notifyListeners();
-    });
+  AuthService({SupabaseClient? supabaseClient, SupabaseService? db})
+      : _injectedClient = supabaseClient,
+        _db = db ?? SupabaseService(client: supabaseClient) {
+    _initAuth();
   }
 
-  /// Loads (or already loaded) the signed-in student's profile from
-  /// `/users/{uid}` and keeps it live-synced.
-  ///
-  /// Safe to call repeatedly: if a profile is already cached it returns
-  /// immediately; otherwise it fetches once via the typed converter and
-  /// starts the real-time subscription. Never throws — failures are logged
-  /// and surfaced via `errorMessage`.
+  void _initAuth() {
+    try {
+      // Restore any existing session on app start
+      _user = _supabase.auth.currentUser;
+      if (_user != null) {
+        ensureProfileLoaded();
+      }
+
+      // Listen to auth state changes (login / logout / token refresh)
+      _supabase.auth.onAuthStateChange.listen((data) {
+        final event = data.event;
+        final session = data.session;
+
+        _user = session?.user;
+
+        if (_user == null || event == AuthChangeEvent.signedOut) {
+          _studentProfile = null;
+          stopProfileSubscription();
+        } else if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.tokenRefreshed ||
+            event == AuthChangeEvent.initialSession) {
+          ensureProfileLoaded();
+        }
+        notifyListeners();
+      });
+    } catch (e) {
+      debugPrint('[AuthService] Supabase not yet initialized: $e');
+    }
+  }
+
+  /// Loads (or returns cached) the signed-in student's profile.
+  /// Starts a real-time subscription to keep it live-synced.
   Future<StudentProfile?> ensureProfileLoaded() async {
     if (_studentProfile != null) return _studentProfile;
-    final uid = _user?.uid;
+    final uid = _user?.id;
     if (uid == null) return null;
 
     try {
-      final docSnapshot = await _fetchTypedStudentProfile(uid);
-      if (docSnapshot.exists && docSnapshot.data() != null) {
-        _studentProfile = docSnapshot.data();
+      final profile = await _db.fetchStudentProfile(uid);
+      if (profile != null) {
+        _studentProfile = profile;
         subscribeToProfile(uid);
         notifyListeners();
         return _studentProfile;
@@ -84,13 +98,10 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Primary Student Login method
-  /// Maps 12-digit LRN to Firebase Auth email: {LRN}@student.readquest.edu
-  /// (matches the email format used by the Teacher Dashboard when provisioning
-  /// student accounts). Falls back to the legacy lrn_{LRN}@mathalino.app format
-  /// for backward compatibility with older accounts.
-  /// Fetches typed StudentProfile from Firestore at /users/{uid}
-  /// Verifies role == 'student'
-  /// Returns StudentProfile or throws custom AuthException
+  /// Maps 12-digit LRN to Supabase Auth email: {LRN}@mathalino.app
+  /// Fetches StudentProfile from Supabase normalized tables.
+  /// Verifies role == 'student'.
+  /// Returns StudentProfile or throws custom AuthException.
   Future<StudentProfile> signInStudent(String lrn, String password) async {
     _setLoading(true);
     _clearError();
@@ -106,48 +117,49 @@ class AuthService extends ChangeNotifier {
         throw AuthException('Please enter your password');
       }
 
-      // 2. Map LRN to Firebase Auth email format: {LRN}@student.readquest.edu
-      //    This is the canonical format used by the Teacher Dashboard when
-      //    provisioning student accounts via createUserWithEmailAndPassword.
-      final primaryEmail = '$cleanLrn@student.readquest.edu';
-      UserCredential credential;
+      // 2. Map LRN to Supabase Auth email: primary is {LRN}@mathalino.app
+      final primaryEmail = '$cleanLrn@mathalino.app';
+      AuthResponse response;
 
       try {
-        credential = await _auth.signInWithEmailAndPassword(
+        response = await _supabase.auth.signInWithPassword(
           email: primaryEmail,
           password: password,
         );
-      } on FirebaseAuthException catch (authErr) {
-        // Fallback check for legacy lrn_ prefix email format
-        if (authErr.code == 'user-not-found') {
+      } on supa.AuthException catch (primaryErr) {
+        // Fallback 1: try readquest format
+        try {
+          final fallbackEmail1 = '$cleanLrn@student.readquest.edu';
+          response = await _supabase.auth.signInWithPassword(
+            email: fallbackEmail1,
+            password: password,
+          );
+        } on supa.AuthException catch (_) {
+          // Fallback 2: try legacy prefix format
           try {
-            final fallbackEmail = 'lrn_$cleanLrn@mathalino.app';
-            credential = await _auth.signInWithEmailAndPassword(
-              email: fallbackEmail,
+            final fallbackEmail2 = 'lrn_$cleanLrn@mathalino.app';
+            response = await _supabase.auth.signInWithPassword(
+              email: fallbackEmail2,
               password: password,
             );
-          } on FirebaseAuthException catch (fallbackErr) {
-            // IMPORTANT: Throw the ACTUAL fallback error (e.g. wrong-password)
-            // instead of the original user-not-found from the primary attempt.
-            throw _handleFirebaseAuthException(fallbackErr);
+          } on supa.AuthException catch (_) {
+            throw _handleSupabaseAuthException(primaryErr);
           }
-        } else {
-          throw _handleFirebaseAuthException(authErr);
         }
       }
 
-      final authenticatedUser = credential.user;
+      final authenticatedUser = response.user;
       if (authenticatedUser == null) {
         throw AuthException('Failed to authenticate student credentials.');
       }
 
       _user = authenticatedUser;
 
-      // 3. Fetch user's Firestore document at /users/{uid} using typed converter
-      final DocumentSnapshot<StudentProfile> docSnapshot = await _fetchTypedStudentProfile(authenticatedUser.uid);
+      // 3. Fetch student profile from `users` table
+      final profile = await _db.fetchStudentProfile(authenticatedUser.id);
 
-      if (!docSnapshot.exists || docSnapshot.data() == null) {
-        await _auth.signOut();
+      if (profile == null) {
+        await _supabase.auth.signOut();
         _user = null;
         _studentProfile = null;
         throw AuthException(
@@ -156,11 +168,9 @@ class AuthService extends ChangeNotifier {
         );
       }
 
-      final profile = docSnapshot.data()!;
-
       // 4. Security check: Verify role == 'student'
       if (profile.role != 'student') {
-        await _auth.signOut();
+        await _supabase.auth.signOut();
         _user = null;
         _studentProfile = null;
         throw AuthException(
@@ -174,24 +184,14 @@ class AuthService extends ChangeNotifier {
       _setLoading(false);
       notifyListeners();
 
-      // Keep the profile live-synced with the Teacher Dashboard while
-      // the student is authenticated.
-      subscribeToProfile(authenticatedUser.uid);
+      // Keep the profile live-synced while the student is authenticated.
+      subscribeToProfile(authenticatedUser.id);
 
       return profile;
-    } on AuthException catch (e) {
+    } on supa.AuthException catch (e) {
       _setError(e.message);
       _setLoading(false);
       rethrow;
-    } on FirebaseException catch (e) {
-      final authEx = AuthException(
-        'Database connection error: ${e.message}',
-        code: e.code,
-        originalError: e,
-      );
-      _setError(authEx.message);
-      _setLoading(false);
-      throw authEx;
     } catch (e) {
       final authEx = AuthException(
         'An unexpected error occurred during login: ${e.toString()}',
@@ -203,46 +203,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Helper method using typed Firestore converter with resilience fallbacks
-  Future<DocumentSnapshot<StudentProfile>> _fetchTypedStudentProfile(String uid) async {
-    final converter = _firestore.collection('users').doc(uid).withConverter<StudentProfile>(
-          fromFirestore: (snapshot, _) => StudentProfile.fromFirestore(snapshot),
-          toFirestore: (profile, _) => profile.toFirestore(),
-        );
-
-    try {
-      return await converter.get();
-    } catch (e) {
-      debugPrint('[AuthService] Primary typed query error: $e. Retrying default Firestore instance...');
-      final fallbackConverter = FirebaseFirestore.instance.collection('users').doc(uid).withConverter<StudentProfile>(
-            fromFirestore: (snapshot, _) => StudentProfile.fromFirestore(snapshot),
-            toFirestore: (profile, _) => profile.toFirestore(),
-          );
-      return await fallbackConverter.get();
-    }
-  }
-
-  /// Fetch user profile data map for UI dashboard display
-  Future<Map<String, dynamic>?> getUserData() async {
-    if (_user == null) return null;
-
-    try {
-      if (_studentProfile != null) {
-        return _studentProfile!.toMap();
-      }
-      final docSnapshot = await _fetchTypedStudentProfile(_user!.uid);
-      if (docSnapshot.exists && docSnapshot.data() != null) {
-        _studentProfile = docSnapshot.data();
-        return _studentProfile!.toMap();
-      }
-      return null;
-    } catch (e) {
-      debugPrint('[AuthService] getUserData error: $e');
-      return null;
-    }
-  }
-
-  /// Backward-compatible login method returning `Future<bool>` for UI compatibility
+  /// Backward-compatible login method returning `Future<bool>` for UI compatibility.
   Future<bool> loginWithLRN(String lrn, String password) async {
     try {
       await signInStudent(lrn, password);
@@ -252,16 +213,12 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Starts a real-time Firestore subscription on /users/{uid} so the
-  /// profile stays synchronized with the Teacher Dashboard while the student
-  /// is logged in. When the teacher edits the student (section, status,
-  /// parent info, avatar, XP, etc.), `_studentProfile` updates automatically
-  /// and listeners are notified.
+  /// Starts a real-time Supabase subscription on the `users` table row
+  /// so the profile stays synchronized with the Teacher Dashboard.
   void subscribeToProfile(String uid) {
     _profileSubscription?.cancel();
     try {
-      final service = FirestoreService(firestore: _firestore);
-      _profileSubscription = service.subscribeStudentProfile(uid).listen(
+      _profileSubscription = _db.subscribeStudentProfile(uid).listen(
         (profile) {
           _studentProfile = profile;
           notifyListeners();
@@ -280,7 +237,7 @@ class AuthService extends ChangeNotifier {
     _profileSubscription = null;
   }
 
-  /// Reset password for a student using their LRN
+  /// Reset password using LRN — sends a reset email via Supabase Auth.
   Future<bool> resetPassword(String lrn) async {
     _setLoading(true);
     _clearError();
@@ -291,28 +248,26 @@ class AuthService extends ChangeNotifier {
         throw AuthException('Please enter a valid 12-digit LRN');
       }
 
-      // Use the canonical email format: {LRN}@student.readquest.edu
-      // (matches the format used by the Teacher Dashboard when provisioning
-      // student accounts). Fall back to the legacy lrn_ prefix format if needed.
-      final email = '$cleanLrn@student.readquest.edu';
+      final email = '$cleanLrn@mathalino.app';
       try {
-        await _auth.sendPasswordResetEmail(email: email);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'user-not-found') {
-          final legacyEmail = 'lrn_$cleanLrn@mathalino.app';
-          await _auth.sendPasswordResetEmail(email: legacyEmail);
-        } else {
-          rethrow;
+        await _supabase.auth.resetPasswordForEmail(email);
+      } on supa.AuthException catch (_) {
+        // Try fallback formats if primary not found
+        try {
+          final fallbackEmail1 = '$cleanLrn@student.readquest.edu';
+          await _supabase.auth.resetPasswordForEmail(fallbackEmail1);
+        } catch (_) {
+          final fallbackEmail2 = 'lrn_$cleanLrn@mathalino.app';
+          await _supabase.auth.resetPasswordForEmail(fallbackEmail2);
         }
       }
 
       _setLoading(false);
       return true;
-    } on FirebaseAuthException catch (e) {
-      final authEx = _handleFirebaseAuthException(e);
-      _setError(authEx.message);
+    } on AuthException catch (e) {
+      _setError(e.message);
       _setLoading(false);
-      throw authEx;
+      rethrow;
     } catch (e) {
       final authEx = AuthException('Password reset failed: ${e.toString()}');
       _setError(authEx.message);
@@ -321,11 +276,28 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Logout current user
+  /// Fetch user profile data map for UI dashboard display.
+  Future<Map<String, dynamic>?> getUserData() async {
+    if (_user == null) return null;
+    try {
+      if (_studentProfile != null) return _studentProfile!.toMap();
+      final profile = await _db.fetchStudentProfile(_user!.id);
+      if (profile != null) {
+        _studentProfile = profile;
+        return _studentProfile!.toMap();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[AuthService] getUserData error: $e');
+      return null;
+    }
+  }
+
+  /// Logout current user.
   Future<void> logout() async {
     try {
       stopProfileSubscription();
-      await _auth.signOut();
+      await _supabase.auth.signOut();
       _user = null;
       _studentProfile = null;
       notifyListeners();
@@ -336,33 +308,30 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// User-friendly FirebaseAuthException parser
-  AuthException _handleFirebaseAuthException(FirebaseAuthException e) {
+  /// User-friendly Supabase AuthException parser.
+  AuthException _handleSupabaseAuthException(supa.AuthException e) {
     String message;
-    switch (e.code) {
-      case 'user-not-found':
-        message = 'No student account found with this LRN. Please check with your teacher.';
-        break;
-      case 'wrong-password':
-      case 'invalid-credential':
-        message = 'Incorrect password. Please try again.';
-        break;
-      case 'invalid-email':
-        message = 'Invalid LRN email format.';
-        break;
-      case 'user-disabled':
-        message = 'This account has been disabled. Please contact your teacher.';
-        break;
-      case 'too-many-requests':
-        message = 'Too many login attempts. Please try again later.';
-        break;
-      case 'network-request-failed':
-        message = 'Network error. Please check your internet connection.';
-        break;
-      default:
-        message = e.message ?? 'Authentication failed. Please try again.';
+    final msg = e.message.toLowerCase();
+
+    if (msg.contains('invalid login') || msg.contains('invalid credentials') ||
+        msg.contains('wrong password') || msg.contains('invalid password')) {
+      message = 'Incorrect password. Please try again.';
+    } else if (msg.contains('user not found') || msg.contains('no user')) {
+      message = 'No student account found with this LRN. Please check with your teacher.';
+    } else if (msg.contains('email not confirmed')) {
+      message = 'Account not verified. Please contact your teacher.';
+    } else if (msg.contains('too many requests') || msg.contains('rate limit')) {
+      message = 'Too many login attempts. Please try again later.';
+    } else if (msg.contains('network') || msg.contains('connection')) {
+      message = 'Network error. Please check your internet connection.';
+    } else if (msg.contains('disabled') || msg.contains('banned')) {
+      message = 'This account has been disabled. Please contact your teacher.';
+    } else {
+      message = e.message.isNotEmpty
+          ? e.message
+          : 'Authentication failed. Please try again.';
     }
-    return AuthException(message, code: e.code, originalError: e);
+    return AuthException(message, code: e.statusCode?.toString(), originalError: e);
   }
 
   void _setLoading(bool value) {
