@@ -58,6 +58,7 @@ class AuthService extends ChangeNotifier {
         if (_user == null || event == AuthChangeEvent.signedOut) {
           _studentProfile = null;
           stopProfileSubscription();
+          _dispatchSignOutCallbacks();
         } else if (event == AuthChangeEvent.signedIn ||
             event == AuthChangeEvent.tokenRefreshed ||
             event == AuthChangeEvent.initialSession) {
@@ -293,6 +294,29 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Registered callbacks to run on user sign out.
+  static final List<VoidCallback> _onSignOutCallbacks = [];
+
+  static void registerSignOutCallback(VoidCallback cb) {
+    if (!_onSignOutCallbacks.contains(cb)) {
+      _onSignOutCallbacks.add(cb);
+    }
+  }
+
+  static void unregisterSignOutCallback(VoidCallback cb) {
+    _onSignOutCallbacks.remove(cb);
+  }
+
+  static void _dispatchSignOutCallbacks() {
+    for (final cb in List<VoidCallback>.from(_onSignOutCallbacks)) {
+      try {
+        cb();
+      } catch (e) {
+        debugPrint('[AuthService] SignOut callback error: $e');
+      }
+    }
+  }
+
   /// Logout current user.
   Future<void> logout() async {
     try {
@@ -300,6 +324,7 @@ class AuthService extends ChangeNotifier {
       await _supabase.auth.signOut();
       _user = null;
       _studentProfile = null;
+      _dispatchSignOutCallbacks();
       notifyListeners();
     } catch (e) {
       final authEx = AuthException('Logout failed: ${e.toString()}');

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mathalino_student_app/core/constants/diagnostic_questions.dart';
 import 'package:mathalino_student_app/core/errors/diagnostic_exception.dart';
+import 'package:mathalino_student_app/core/models/question.dart';
 import 'package:mathalino_student_app/core/models/student_profile.dart';
 import 'package:mathalino_student_app/core/models/student_result_model.dart';
 import 'package:mathalino_student_app/core/services/diagnostic_assessment_service.dart';
@@ -381,7 +382,25 @@ void main() {
     test('scores all numericInput questions', () {
       final numericQuestions =
           questions.where((q) => q.type == 'numericInput').toList();
-      expect(numericQuestions, isNotEmpty);
+      if (numericQuestions.isEmpty) {
+        // Diagnostic bank was standardized to multipleChoice for primary students;
+        // test ScoringService numericInput handling with synthetic question.
+        final syntheticQ = Question(
+          id: 'test_num_1',
+          grade: 1,
+          contentDomain: 'M1NS',
+          competencyCode: 'M1NS',
+          competencyText: 'Number Sense',
+          cognitiveDomain: 'Knowing',
+          type: 'numericInput',
+          questionText: 'What is 5 + 5?',
+          correctAnswer: '10',
+          maxPoints: 1,
+        );
+        expect(scoringService.scoreQuestion(syntheticQ, '10'), equals(1));
+        expect(scoringService.scoreQuestion(syntheticQ, 'WRONG'), equals(0));
+        return;
+      }
 
       for (final q in numericQuestions) {
         final correctAnswer = q.correctAnswer is List

@@ -40,6 +40,7 @@ class DiagnosticProvider extends ChangeNotifier {
 
   // ── State ────────────────────────────────────────────────────────────
 
+  String? _loadedUserId;
   List<Question> _questions = [];
   final List<dynamic> _answers = [];
   int _currentIndex = 0;
@@ -52,6 +53,7 @@ class DiagnosticProvider extends ChangeNotifier {
 
   // ── Getters ──────────────────────────────────────────────────────────
 
+  String? get loadedUserId => _loadedUserId;
   List<Question> get questions => _questions;
   int get currentIndex => _currentIndex;
   bool get isLoading => _isLoading;
@@ -96,12 +98,20 @@ class DiagnosticProvider extends ChangeNotifier {
     required int gradeLevel,
     required List<String> usedQuestionsHistory,
   }) async {
+    _loadedUserId = userId;
+    _questions = [];
+    _answers.clear();
+    _currentIndex = 0;
+    _isComplete = false;
+    _placementResult = null;
+    _diagnosticResult = null;
     _setLoading(true);
     _clearError();
     try {
       final questions = await _diagnosticQuestionService
           .selectDiagnosticQuestions(
             usedQuestionsHistory: usedQuestionsHistory.toSet(),
+            gradeLevel: gradeLevel,
             count: 20,
           );
 
@@ -279,8 +289,9 @@ class DiagnosticProvider extends ChangeNotifier {
     }
   }
 
-  /// Resets the diagnostic state (e.g. when navigating away).
+  /// Resets the diagnostic state (e.g. when navigating away or switching accounts).
   void resetDiagnostic() {
+    _loadedUserId = null;
     _questions = [];
     _answers.clear();
     _currentIndex = 0;

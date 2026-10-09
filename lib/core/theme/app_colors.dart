@@ -1,42 +1,56 @@
 import 'package:flutter/material.dart';
+import 'mathalino_tokens.dart';
 
 /// Mathalino App Color Palette
-/// Playful, gamified theme for young students
+/// Playful, gamified theme for young students with updated design tokens
 class AppColors {
   // Primary Colors
-  static const Color primary = Color(0xFF4F46E5); // Playful Indigo
-  static const Color primaryDark = Color(0xFF4338CA);
-  static const Color primaryLight = Color(0xFF818CF8);
+  static const Color primary = AppTokens.primaryIndigo;
+  static const Color primaryDark = AppTokens.primaryShadow;
+  static const Color primaryLight = AppTokens.tilePeriwinkle;
+  static const Color primaryShadow = AppTokens.primaryShadow;
+  static const Color headingIndigo = AppTokens.headingIndigo;
 
   // Secondary/Accent Colors
-  static const Color accent = Color(0xFFF59E0B); // Vibrant Amber/Gold
-  static const Color accentDark = Color(0xFFD97706);
-  static const Color accentLight = Color(0xFFFCD34D);
+  static const Color accent = AppTokens.accentOrange;
+  static const Color accentDark = AppTokens.orangeText;
+  static const Color accentLight = AppTokens.accentRing;
+  static const Color accentRing = AppTokens.accentRing;
+  static const Color orangeText = AppTokens.orangeText;
 
   // Success/Reward Colors
-  static const Color success = Color(0xFF10B981); // Emerald Green
-  static const Color successDark = Color(0xFF059669);
-  static const Color successLight = Color(0xFF34D399);
+  static const Color success = AppTokens.successGreen;
+  static const Color successDark = Color(0xFF064E3B);
+  static const Color successLight = AppTokens.tileMint;
+  static const Color successRing = AppTokens.successRing;
 
-  // Background Colors
-  static const Color background = Color(0xFFF3F4F6); // Soft Off-White/Light Purple
-  static const Color backgroundLight = Color(0xFFFAFAFA);
-  static const Color cardBackground = Color(0xFFFFFFFF);
+  // Background Colors - Warm Cream
+  static const Color background = AppTokens.background;
+  static const Color backgroundLight = AppTokens.background;
+  static const Color cardBackground = Colors.white;
 
   // Text Colors
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textPrimary = AppTokens.bodyText;
+  static const Color textSecondary = AppTokens.secondaryText;
   static const Color textLight = Color(0xFF9CA3AF);
 
+  // Border & Badges
+  static const Color cardBorder = AppTokens.cardBorder;
+  static const Color inputBorder = AppTokens.inputBorder;
+  static const Color iconBadgeFill = AppTokens.iconBadgeFill;
+
   // Error Colors
-  static const Color error = Color(0xFFEF4444);
-  static const Color errorDark = Color(0xFFDC2626);
+  static const Color error = AppTokens.errorRed;
+  static const Color errorDark = Color(0xFF991B1B);
 
   // Warning Colors
-  static const Color warning = Color(0xFFF59E0B);
+  static const Color warning = AppTokens.accentOrange;
 
   // Info Colors
   static const Color info = Color(0xFF3B82F6);
+
+  // Focus Glow
+  static const Color focusGlow = AppTokens.focusGlow;
 
   // Gradient Colors
   static const LinearGradient primaryGradient = LinearGradient(

@@ -1,226 +1,402 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import '../core/theme/app_colors.dart';
-import '../widgets/animated_logo.dart';
+import '../core/theme/mathalino_tokens.dart';
+import '../widgets/chunky_3d_button.dart';
+import '../widgets/floating_math_tile.dart';
 
-/// Landing Page (Onboarding View)
-/// Features animated logo, feature carousel, and login button
-class LandingPage extends StatelessWidget {
+/// Landing Page (Welcome View)
+/// Gamified welcome screen featuring Mathalino logo, floating math tiles,
+/// feature carousel with side peeking, and 3D primary button.
+class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
   @override
+  State<LandingPage> createState() => _LandingPageState();
+}
+
+class _LandingPageState extends State<LandingPage> {
+  int _carouselIndex = 0;
+
+  final List<Map<String, dynamic>> _features = const [
+    {
+      'icon': Icons.star_rounded,
+      'title': 'Earn XP & Coins',
+      'description': 'Collect rewards as you solve math problems',
+      'color': AppTokens.accentOrange,
+      'ringColor': AppTokens.accentRing,
+    },
+    {
+      'icon': Icons.explore_rounded,
+      'title': 'Solve Quests',
+      'description': 'Complete exciting math adventures',
+      'color': Color(0xFF10B981),
+      'ringColor': Color(0xFFA7F3D0),
+    },
+    {
+      'icon': Icons.map_rounded,
+      'title': 'Unlock World Maps',
+      'description': 'Discover new lands as you progress',
+      'color': AppTokens.primaryIndigo,
+      'ringColor': AppTokens.indigoRing,
+    },
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    // Responsive sizing
+    final isCompact = screenHeight < 720;
+    final logoWidth = isCompact
+        ? math.min(220.0, screenWidth * 0.58)
+        : math.min(250.0, screenWidth * 0.65);
+
     return Scaffold(
+      backgroundColor: AppTokens.background,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.background,
-              AppColors.backgroundLight,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        width: double.infinity,
+        height: double.infinity,
+        color: AppTokens.background,
         child: SafeArea(
-          child: Column(
-            children: [
-              // Top Section: Animated Logo + Title
-              Expanded(
-                flex: 2,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const AnimatedLogo(size: 150),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Welcome to Mathalino!',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Math Made Fun!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Middle Section: Feature Carousel
-              Expanded(
-                flex: 2,
-                child: _buildFeatureCarousel(),
-              ),
-
-              // Bottom Section: Login Button + Footer
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _buildLoginButton(context),
+                        // --- Top Section: Logo & Floating Decorations ---
+                        _buildTopDecorationsAndLogo(screenWidth, logoWidth, isCompact),
+
+                        const SizedBox(height: 8),
+
+                        // --- Title & Subtitle ---
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Welcome to Mathalino!',
+                                style: TextStyle(
+                                  fontFamily: AppTokens.fontBaloo2,
+                                  fontSize: isCompact ? 28 : 33,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTokens.headingIndigo,
+                                  height: 1.15,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Math Made Fun!',
+                                style: TextStyle(
+                                  fontFamily: AppTokens.fontBaloo2,
+                                  fontSize: isCompact ? 19 : 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTokens.orangeText,
+                                  height: 1.15,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: isCompact ? 14 : 20),
+
+                        // --- Middle Section: Feature Carousel ---
+                        _buildCarousel(screenWidth),
+
                         const SizedBox(height: 12),
-                        _buildFooterNote(context),
+
+                        // --- Page Indicator Dots (12px under cards) ---
+                        _buildPageDots(),
+
+                        const Spacer(),
+
+                        SizedBox(height: isCompact ? 14 : 22),
+
+                        // --- Bottom Section: 3D Button & Footer Note ---
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Chunky3DButton(
+                            text: 'Start Learning',
+                            iconLeading: true,
+                            icon: Icons.arrow_forward_rounded,
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/login');
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            'Are you a Teacher or Parent?\nVisit our Web Portal to log in.',
+                            style: TextStyle(
+                              fontFamily: AppTokens.fontNunito,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppTokens.secondaryText,
+                              height: 1.35,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
                         const SizedBox(height: 16),
                       ],
                     ),
                   ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFeatureCarousel() {
-    final features = [
-      {
-        'icon': Icons.star,
-        'title': 'Earn XP & Coins',
-        'description': 'Collect rewards as you solve math problems',
-        'color': AppColors.accent,
-      },
-      {
-        'icon': Icons.explore,
-        'title': 'Solve Quests',
-        'description': 'Complete exciting math adventures',
-        'color': AppColors.success,
-      },
-      {
-        'icon': Icons.map,
-        'title': 'Unlock World Maps',
-        'description': 'Discover new lands as you progress',
-        'color': AppColors.primary,
-      },
-    ];
+  Widget _buildTopDecorationsAndLogo(
+      double screenWidth, double logoWidth, bool isCompact) {
+    final logoTop = isCompact ? 16.0 : 24.0;
+    // Stack height accommodates the full square logo + top offset with generous breathing space below
+    final stackHeight = logoTop + logoWidth + (isCompact ? 20.0 : 28.0);
 
-    return CarouselSlider(
-      options: CarouselOptions(
-        height: 200,
-        viewportFraction: 0.85,
-        enlargeCenterPage: true,
-        enableInfiniteScroll: true,
-        autoPlay: true,
-        autoPlayInterval: const Duration(seconds: 4),
-        autoPlayAnimationDuration: const Duration(milliseconds: 800),
+    return SizedBox(
+      width: screenWidth,
+      height: stackHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          // 1. Tiny 4-point yellow star near top left
+          Positioned(
+            left: screenWidth * 0.23,
+            top: isCompact ? 6 : 12,
+            child: const FourPointStar(
+              size: 15,
+              color: AppTokens.accentOrange,
+            ),
+          ),
+
+          // 2. Tiny 4-point periwinkle star near top right
+          Positioned(
+            right: screenWidth * 0.21,
+            top: isCompact ? 10 : 16,
+            child: const FourPointStar(
+              size: 13,
+              color: AppTokens.tilePeriwinkle,
+            ),
+          ),
+
+          // 3. Top-left yellow "+" math tile (-12 deg)
+          Positioned(
+            left: math.max(12.0, (screenWidth - logoWidth) / 2 - 44),
+            top: isCompact ? 10 : 18,
+            child: const FloatingMathTile(
+              size: 46,
+              radius: AppTokens.radiusTileWelcome,
+              symbol: '+',
+              symbolSize: 30,
+              backgroundColor: AppTokens.tileYellow,
+              symbolColor: AppTokens.tileSymbolYellow,
+              angleInDegrees: -12,
+              delay: Duration.zero,
+            ),
+          ),
+
+          // 4. Top-right mint "×" math tile (10 deg)
+          Positioned(
+            right: math.max(12.0, (screenWidth - logoWidth) / 2 - 44),
+            top: isCompact ? 14 : 24,
+            child: const FloatingMathTile(
+              size: 46,
+              radius: AppTokens.radiusTileWelcome,
+              symbol: '×',
+              symbolSize: 30,
+              backgroundColor: AppTokens.tileMint,
+              symbolColor: AppTokens.tileSymbolMint,
+              angleInDegrees: 10,
+              delay: Duration(milliseconds: 600),
+            ),
+          ),
+
+          // 5. Left periwinkle "÷" math tile (8 deg) beside logo's lower half
+          Positioned(
+            left: math.max(10.0, (screenWidth - logoWidth) / 2 - 48),
+            top: logoTop + logoWidth * 0.52,
+            child: const FloatingMathTile(
+              size: 46,
+              radius: AppTokens.radiusTileWelcome,
+              symbol: '÷',
+              symbolSize: 30,
+              backgroundColor: AppTokens.tilePeriwinkle,
+              symbolColor: AppTokens.tileSymbolPeriwinkle,
+              angleInDegrees: 8,
+              delay: Duration(milliseconds: 1200),
+            ),
+          ),
+
+          // 6. Right sky "−" math tile (-8 deg) beside logo's lower half
+          Positioned(
+            right: math.max(10.0, (screenWidth - logoWidth) / 2 - 48),
+            top: logoTop + logoWidth * 0.56,
+            child: const FloatingMathTile(
+              size: 46,
+              radius: AppTokens.radiusTileWelcome,
+              symbol: '−',
+              symbolSize: 30,
+              backgroundColor: AppTokens.tileSky,
+              symbolColor: AppTokens.tileSymbolSky,
+              angleInDegrees: -8,
+              delay: Duration(milliseconds: 1800),
+            ),
+          ),
+
+          // 7. Center Mascot Logo
+          Positioned(
+            top: logoTop,
+            child: Image.asset(
+              'image/MLOGO.png',
+              width: logoWidth,
+              height: logoWidth,
+              fit: BoxFit.contain,
+              semanticLabel: 'Mathalino Logo',
+            ),
+          ),
+        ],
       ),
-      items: features.map((feature) {
-        return Builder(
-          builder: (BuildContext context) {
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.shadowColor,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
+  Widget _buildCarousel(double screenWidth) {
+    // 300 wide card + 12 margin between cards = 312 pitch
+    final fraction = (312.0 / screenWidth).clamp(0.70, 0.90);
+
+    return SizedBox(
+      height: 220, // 208 card height + 6px bottom shadow + 6px breathing room
+      child: CarouselSlider.builder(
+        itemCount: _features.length,
+        options: CarouselOptions(
+          height: 220,
+          viewportFraction: fraction,
+          initialPage: 0,
+          enableInfiniteScroll: true,
+          enlargeCenterPage: false,
+          autoPlay: true,
+          autoPlayInterval: const Duration(seconds: 4),
+          autoPlayAnimationDuration: const Duration(milliseconds: 800),
+          onPageChanged: (index, reason) {
+            setState(() {
+              _carouselIndex = index;
+            });
+          },
+        ),
+        itemBuilder: (context, index, realIndex) {
+          final feature = _features[index];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Center(
+              child: Container(
+                width: 300,
+                height: 208,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                  border: Border.all(color: AppTokens.cardBorder, width: 3),
+                  boxShadow: const [AppTokens.cardSolidShadow],
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // 76px circle icon with 4px lighter ring
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      width: 76,
+                      height: 76,
                       decoration: BoxDecoration(
                         color: feature['color'] as Color,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: feature['ringColor'] as Color,
+                          width: 4,
+                        ),
                       ),
+                      alignment: Alignment.center,
                       child: Icon(
                         feature['icon'] as IconData,
                         color: Colors.white,
-                        size: 32,
+                        size: 38,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
+                    // Title
                     Text(
                       feature['title'] as String,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        fontFamily: AppTokens.fontBaloo2,
+                        fontSize: 25,
                         fontWeight: FontWeight.w700,
+                        color: AppTokens.bodyText,
+                        height: 1.1,
                       ),
                       textAlign: TextAlign.center,
+                      maxLines: 1,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+                    // Description
                     Text(
                       feature['description'] as String,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        fontFamily: AppTokens.fontNunito,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppTokens.secondaryText,
+                        height: 1.25,
                       ),
                       textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildLoginButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/login');
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.login, size: 20),
-            const SizedBox(width: 12),
-            Text(
-              'Start Learning',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFooterNote(BuildContext context) {
-    return Text(
-      'Are you a Teacher or Parent?\nVisit our Web Portal to log in.',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: AppColors.textSecondary,
-        fontWeight: FontWeight.w500,
-      ),
-      textAlign: TextAlign.center,
+  Widget _buildPageDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_features.length, (index) {
+        final isActive = index == _carouselIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isActive ? 28 : 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: isActive ? AppTokens.primaryIndigo : AppTokens.inputBorder,
+            borderRadius: BorderRadius.circular(5),
+          ),
+        );
+      }),
     );
   }
 }

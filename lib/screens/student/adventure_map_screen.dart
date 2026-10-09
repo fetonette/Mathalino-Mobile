@@ -1,13 +1,22 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/models/student_profile.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/level_progress_provider.dart';
 import '../../providers/remediation_provider.dart';
+import '../../widgets/chunky_3d_button.dart';
+import '../../widgets/home/home_background.dart';
+import '../../widgets/home/home_strings.dart';
+import '../../widgets/home/home_widgets.dart';
+import '../../widgets/home/level_map.dart';
 import '../../widgets/level_node.dart';
-import '../../widgets/zone_banner.dart';
 import 'remediation_screen.dart';
 import 'adventure_sections.dart';
 import 'beginner_zone_gameplay_screen.dart';
@@ -21,9 +30,18 @@ class AdventureMapScreen extends StatefulWidget {
   State<AdventureMapScreen> createState() => _AdventureMapScreenState();
 }
 
-class _AdventureMapScreenState extends State<AdventureMapScreen> {
+class _AdventureMapScreenState extends State<AdventureMapScreen>
+    with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   int _selectedSection = 0;
+
+  // ── Home presentation state (UI only) ────────────────────────────────────
+  /// Zone whose levels are currently in view (drives the pinned zone card).
+  final ValueNotifier<int> _zoneInView = ValueNotifier<int>(1);
+  LevelMapLayout? _layout;
+  double _viewportHeight = 0;
+  bool _dataReady = false;
+  bool _didInitialScroll = false;
 
   @override
   void initState() {
@@ -45,7 +63,8 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
       }
 
       if (mounted) {
-        _scrollToCurrentLevel(levelProvider.currentLevel);
+        // Data is loaded: let the map jump to the current level once built.
+        setState(() => _dataReady = true);
 
         // ── One-time Welcome Modal ─────────────────────────────────────
         // Show once per UID (both new students from diagnostic and existing
@@ -322,56 +341,65 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
     );
   }
 
-  void _scrollToCurrentLevel(int targetLevel) {
-    if (!mounted || targetLevel <= 1 || !_scrollController.hasClients) return;
+  // ─── Map scrolling ───────────────────────────────────────────────────────
 
-    // Approximate node height + padding = ~76px, with zone header offsets
-    final double targetOffset =
-        (targetLevel - 1) * 76.0 +
-        (targetLevel > 20 ? 120.0 : 0.0) +
-        (targetLevel > 40 ? 120.0 : 0.0);
+  /// Scrolls so the current level sits in the upper-middle of the map area.
+  void _scrollToCurrentLevel(int targetLevel, {bool animate = false}) {
+    final layout = _layout;
+    if (!mounted || layout == null || !_scrollController.hasClients) return;
+    if (layout.entries.isEmpty) return;
 
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final clampedOffset = targetOffset.clamp(0.0, maxScroll);
+    final h = _viewportHeight;
+    final localY = math.min(math.max(0.40 * h, 175.0), math.max(h - 125.0, 0.0));
+    final index = (targetLevel - 1).clamp(0, layout.entries.length - 1);
+    final offset = layout
+        .offsetFor(index, localY)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
 
-    _scrollController.animateTo(
-      clampedOffset,
-      duration: const Duration(milliseconds: 700),
-      curve: Curves.easeOutCubic,
-    );
+    if (animate) {
+      _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      _scrollController.jumpTo(offset);
+    }
+    _updateZoneInView(offset);
+  }
+
+  void _updateZoneInView(double pixels) {
+    final layout = _layout;
+    if (layout == null || layout.centers.isEmpty) return;
+    final probe = pixels + _viewportHeight * 0.35;
+    var best = 0;
+    var bestDist = double.infinity;
+    for (var i = 0; i < layout.centers.length; i++) {
+      final d = (layout.centers[i].dy - probe).abs();
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    }
+    final zone = HomeZone.forLevel(layout.entries[best].level).number;
+    if (_zoneInView.value != zone) _zoneInView.value = zone;
+  }
+
+  bool _onMapScroll(ScrollNotification n) {
+    if (n.metrics.axis == Axis.vertical) _updateZoneInView(n.metrics.pixels);
+    return false;
   }
 
   @override
   void dispose() {
+    _zoneInView.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _confirmLogout() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Log out?'),
-        content: const Text('Are you sure you want to log out of Mathalino?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout != true || !mounted) return;
-
-    await context.read<AuthService>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/landing', (route) => false);
+  /// Starts a level. Same navigation as before.
+  void _startLevel(int levelNumber) {
+    _navigateToGameplay(levelNumber);
   }
 
   void _navigateToGameplay(int levelNumber) {
@@ -453,281 +481,208 @@ class _AdventureMapScreenState extends State<AdventureMapScreen> {
     final int coins = profile?.stats.coins ?? 0;
     final int currentLevel = levelProvider.currentLevel;
 
-    final sections = <Widget>[
-      _buildMapBody(context, levelProvider),
-      const AdventureLearnView(),
-      const AdventureProgressView(),
-      const AdventureProfileView(),
-    ];
+    if (_selectedSection == 0) {
+      return _buildHome(
+        levelProvider: levelProvider,
+        name: displayName,
+        coins: coins,
+        xp: totalXp,
+      );
+    }
 
-    return Scaffold(
-      backgroundColor: const Color(
-        0xFF0F172A,
-      ), // Slate Dark Background for Gamified Contrast
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 4,
-        automaticallyImplyLeading: false,
-        title: Row(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: AppTokens.background,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              if (_selectedSection == 1 || _selectedSection == 2)
+                HomeHeader(
+                  name: displayName,
+                  level: currentLevel,
+                  coins: coins,
+                  xp: totalXp,
+                ),
+              Expanded(
+                child: _selectedSection == 1
+                    ? const AdventureLearnView()
+                    : _selectedSection == 2
+                        ? AdventureProgressView(
+                            onNavigateToLearn: () => _selectSection(1),
+                          )
+                        : const AdventureProfileView(),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: _buildBottomNav(),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.maxWidth < 700
+          ? HomeBottomNav(
+              selectedIndex: _selectedSection,
+              onSelected: _selectSection,
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  // ─── Home / level map ────────────────────────────────────────────────────
+
+  Widget _buildHome({
+    required LevelProgressProvider levelProvider,
+    required String name,
+    required int coins,
+    required int xp,
+  }) {
+    final currentLevel = levelProvider.currentLevel;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: AppTokens.background,
+        body: Stack(
           children: [
-            const CircleAvatar(
-              backgroundColor: AppColors.primary,
-              child: Icon(Icons.person, color: Colors.white),
+            // Fixed background layer (does not scroll, never takes taps).
+            const Positioned.fill(child: HomeBackground()),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  HomeHeader(
+                    name: name,
+                    level: currentLevel,
+                    coins: coins,
+                    xp: xp,
+                  ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _zoneInView,
+                    builder: (context, zoneNumber, _) {
+                      final zone = HomeZone.all[zoneNumber - 1];
+                      return ZoneCard(
+                        zone: zone,
+                        completed: _completedIn(levelProvider, zone),
+                      );
+                    },
+                  ),
+                  Expanded(
+                    child: levelProvider.isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.accent,
+                            ),
+                          )
+                        : _buildMapArea(levelProvider),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Current Level: $currentLevel',
-                  style: const TextStyle(
-                    color: Color(0xFFF59E0B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            // Floating Continue button (same action as tapping the current level).
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 4,
+              child: Chunky3DButton(
+                text: HomeStrings.continueLevel(currentLevel),
+                icon: Icons.play_arrow_rounded,
+                iconLeading: true,
+                height: 56,
+                fontSize: 20,
+                onPressed: () => _startLevel(currentLevel),
+              ),
             ),
           ],
         ),
-        actions: [
-          // Coins Indicator
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.monetization_on,
-                  color: Color(0xFFF59E0B),
-                  size: 18,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$coins',
-                  style: const TextStyle(
-                    color: Color(0xFFF59E0B),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // XP Indicator
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Color(0xFF818CF8), size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '$totalXp XP',
-                  style: const TextStyle(
-                    color: Color(0xFF818CF8),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: _confirmLogout,
-            tooltip: 'Log out',
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-          ),
-        ],
-      ),
-      body: levelProvider.isLoading && _selectedSection == 0
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
-            )
-          : sections[_selectedSection],
-      bottomNavigationBar: LayoutBuilder(
-        builder: (context, constraints) => constraints.maxWidth < 700
-            ? NavigationBar(
-                selectedIndex: _selectedSection,
-                onDestinationSelected: _selectSection,
-                destinations: _navigationDestinations(),
-              )
-            : const SizedBox.shrink(),
+        bottomNavigationBar: _buildBottomNav(),
       ),
     );
   }
 
-  Widget _buildMapBody(
-    BuildContext context,
-    LevelProgressProvider levelProvider,
-  ) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.only(bottom: 40),
-      child: Column(
-        children: [
-          // ZONE 1: Levels 1-20
-          _buildZoneSection(
-            context: context,
-            zoneNumber: 1,
-            startLevel: 1,
-            endLevel: 20,
-            provider: levelProvider,
-            banner: ZoneBanner.zone1(
-              completedCount: _getCompletedCount(levelProvider, 1, 20),
+  Widget _buildMapArea(LevelProgressProvider provider) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _viewportHeight = constraints.maxHeight;
+        final entries = <LevelMapEntry>[
+          for (var level = 1; level <= 60; level++)
+            LevelMapEntry(
+              level,
+              levelNodeKindFor(
+                provider.getLevelState(level),
+                level == provider.currentLevel,
+              ),
             ),
-          ),
+        ];
+        final width = constraints.maxWidth;
+        if (_layout == null || !_layout!.sameShape(width, entries)) {
+          _layout = LevelMapLayout.compute(width: width, entries: entries);
+        }
 
-          // ZONE 2: Levels 21-40
-          _buildZoneSection(
-            context: context,
-            zoneNumber: 2,
-            startLevel: 21,
-            endLevel: 40,
-            provider: levelProvider,
-            banner: ZoneBanner.zone2(
-              completedCount: _getCompletedCount(levelProvider, 21, 40),
-            ),
-          ),
+        if (_dataReady && !_didInitialScroll) {
+          _didInitialScroll = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _zoneInView.value = HomeZone.forLevel(provider.currentLevel).number;
+            _scrollToCurrentLevel(provider.currentLevel);
+          });
+        }
 
-          // ZONE 3: Levels 41-60
-          _buildZoneSection(
-            context: context,
-            zoneNumber: 3,
-            startLevel: 41,
-            endLevel: 60,
-            provider: levelProvider,
-            banner: ZoneBanner.zone3(
-              completedCount: _getCompletedCount(levelProvider, 41, 60),
-            ),
-          ),
-        ],
-      ),
+        return LevelMapView(
+          controller: _scrollController,
+          layout: _layout!,
+          // Space for the floating Continue button (56 + shadow + margins).
+          extraBottom: 96,
+          onScrollNotification: _onMapScroll,
+          nodeBuilder: (entry) {
+            final level = entry.level;
+            return LevelNode(
+              levelNumber: level,
+              state: provider.getLevelState(level),
+              isHard: LevelProgressProvider.isHardLevel(level),
+              isBoss: LevelProgressProvider.isBossLevel(level),
+              isCurrent: level == provider.currentLevel,
+              onTap: () => _startLevel(level),
+            );
+          },
+        );
+      },
     );
-  }
-
-  List<NavigationDestination> _navigationDestinations() {
-    return const [
-      NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.menu_book_outlined),
-        selectedIcon: Icon(Icons.menu_book),
-        label: 'Learn',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.insights_outlined),
-        selectedIcon: Icon(Icons.insights),
-        label: 'Progress',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.person_outline),
-        selectedIcon: Icon(Icons.person),
-        label: 'Profile',
-      ),
-    ];
   }
 
   void _selectSection(int index) {
-    setState(() => _selectedSection = index);
-    if (index == 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToCurrentLevel(
-          context.read<LevelProgressProvider>().currentLevel,
-        );
-      });
-    }
+    setState(() {
+      _selectedSection = index;
+      if (index == 0) {
+        // Re-center the map on the current level when returning to Home.
+        _didInitialScroll = false;
+      }
+    });
   }
 
-  int _getCompletedCount(LevelProgressProvider provider, int start, int end) {
+  int _completedIn(LevelProgressProvider provider, HomeZone zone) {
     int count = 0;
-    for (int i = start; i <= end; i++) {
+    for (int i = zone.firstLevel; i <= zone.lastLevel; i++) {
       if (provider.getLevelState(i) == LevelState.completed) {
         count++;
       }
     }
     return count;
-  }
-
-  Widget _buildZoneSection({
-    required BuildContext context,
-    required int zoneNumber,
-    required int startLevel,
-    required int endLevel,
-    required LevelProgressProvider provider,
-    required Widget banner,
-  }) {
-    final List<int> levels = List.generate(
-      endLevel - startLevel + 1,
-      (i) => startLevel + i,
-    );
-
-    return Column(
-      children: [
-        banner,
-        const SizedBox(height: 12),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: levels.length,
-          itemBuilder: (context, index) {
-            final levelNum = levels[index];
-            final state = provider.getLevelState(levelNum);
-            final bool isHard = LevelProgressProvider.isHardLevel(levelNum);
-            final bool isBoss = LevelProgressProvider.isBossLevel(levelNum);
-            final bool isCurrent = levelNum == provider.currentLevel;
-
-            // Serpentine horizontal offset pattern: Left, Center, Right, Center, Left
-            final int posPattern = index % 4;
-            Alignment alignment = Alignment.center;
-            if (posPattern == 0) alignment = const Alignment(-0.6, 0.0);
-            if (posPattern == 1) alignment = Alignment.center;
-            if (posPattern == 2) alignment = const Alignment(0.6, 0.0);
-            if (posPattern == 3) alignment = Alignment.center;
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Align(
-                alignment: alignment,
-                child: LevelNode(
-                  levelNumber: levelNum,
-                  state: state,
-                  isHard: isHard,
-                  isBoss: isBoss,
-                  isCurrent: isCurrent,
-                  onTap: () => _navigateToGameplay(levelNum),
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
   }
 }

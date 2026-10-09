@@ -5,7 +5,7 @@ import 'question_repository.dart';
 
 /// Question Selector Service for Mathalino Student App.
 ///
-/// Responsible for querying the Firestore `/questions` collection and
+/// Responsible for querying the Supabase `questions` table and
 /// returning a curated list of [Question] objects based on the current
 /// level, content pool (competency codes), and the student's question
 /// history. Also supports remediation-specific filtering by competency

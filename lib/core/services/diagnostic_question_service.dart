@@ -52,6 +52,7 @@ class DiagnosticQuestionService {
   /// database read fails, so the caller can show a retryable state.
   Future<List<Question>> selectDiagnosticQuestions({
     required Set<String> usedQuestionsHistory,
+    int? gradeLevel,
     int count = defaultAttemptCount,
   }) async {
     try {
@@ -68,6 +69,7 @@ class DiagnosticQuestionService {
       final selected = selectAttemptItems(
         pool: pool,
         usedQuestionsHistory: usedQuestionsHistory,
+        gradeLevel: gradeLevel,
         count: count,
       );
 
@@ -80,6 +82,7 @@ class DiagnosticQuestionService {
 
       debugPrint(
         '[DiagnosticQuestionService] Bank: ${pool.length} items, '
+        'gradeLevel: $gradeLevel, '
         'selected: ${selected.length}.',
       );
       return selected;
@@ -97,22 +100,55 @@ class DiagnosticQuestionService {
   /// Pure selection logic (no I/O) — unit-tested for the "exactly [count]
   /// items, even on a retake" guarantee.
   ///
-  /// Fisher-Yates shuffles the full [pool], prefers questions not in
-  /// [usedQuestionsHistory], and backfills from previously-seen questions only
-  /// when fewer than [count] unseen items remain. Because
-  /// `pool.length >= count` (the 40-item bank vs a 20-item attempt), this
-  /// always returns exactly [count] unique questions.
+  /// For students in Grade 1, 2, or 3:
+  /// - Automatically prioritizes the easiest and most age-appropriate questions
+  ///   based on difficulty ('Easy' / 'Knowing' first), grade level (on-grade/foundational
+  ///   first), and core foundational skills (Number Identification, Counting, Basic Addition/Subtraction).
+  /// - Backfills safely if fewer items exist in early grades, and prefers unseen
+  ///   items on retakes while staying strictly within the age-appropriate pool.
+  ///
+  /// For students in Grades 4–6 (or unassigned/null):
+  /// - Preserves the standard uniform shuffle selection across the full diagnostic bank.
+  ///
+  /// Always returns exactly [count] unique questions with valid choices and answer keys.
   @visibleForTesting
   static List<Question> selectAttemptItems({
     required List<Question> pool,
     required Set<String> usedQuestionsHistory,
+    int? gradeLevel,
+    int count = defaultAttemptCount,
+  }) {
+    // 1. Sanitize pool: discard any corrupted/invalid question entries
+    final validPool = pool.where(isValidQuestion).toList();
+
+    // 2. Route based on student grade level:
+    // Grades 1–3: Prioritize easiest & age-appropriate questions
+    if (gradeLevel != null && gradeLevel >= 1 && gradeLevel <= 3) {
+      return _selectGradeAppropriateAttempt(
+        pool: validPool,
+        studentGrade: gradeLevel,
+        usedQuestionsHistory: usedQuestionsHistory,
+        count: count,
+      );
+    }
+
+    // Grades 4–6 or unspecified: existing standard selection logic
+    return _selectStandardAttempt(
+      pool: validPool,
+      usedQuestionsHistory: usedQuestionsHistory,
+      count: count,
+    );
+  }
+
+  /// Standard diagnostic question selection (used for Grades 4–6).
+  /// Uniform Fisher-Yates shuffle across the full bank with unseen preference.
+  static List<Question> _selectStandardAttempt({
+    required List<Question> pool,
+    required Set<String> usedQuestionsHistory,
     required int count,
   }) {
-    // Fisher-Yates shuffle the full pool (uses the shared utility).
     final shuffledPool = QuestionShuffleService.fisherYatesShuffle(pool);
 
-    // Prefer unseen questions; keep previously-seen ones for backfill. The
-    // shuffled order is preserved within each group, so selection is uniform.
     final unseen = <Question>[];
     final previouslySeen = <Question>[];
     for (final question in shuffledPool) {
@@ -123,12 +159,184 @@ class DiagnosticQuestionService {
       }
     }
 
-    // Take the first [count] unseen items; backfill from the previously-used
-    // pool only when fewer than [count] unseen items remain.
     return <Question>[
       ...unseen.take(count),
       if (unseen.length < count) ...previouslySeen.take(count - unseen.length),
     ];
+  }
+
+  /// Grade-adapted diagnostic question selection for Grades 1–3.
+  ///
+  /// Prioritizes questions based on:
+  /// 1. Grade appropriateness:
+  ///    - Grade 1: Grade 1 (on-level) -> Grade 2 -> Grade 3 -> Grade 4+ (fallback only)
+  ///    - Grade 2: Grades 1 & 2 (foundational/on-level) -> Grade 3 -> Grade 4+ (fallback only)
+  ///    - Grade 3: Grades 1–3 (foundational/on-level) -> Grade 4+ (fallback only)
+  /// 2. Difficulty: Easy/Knowing (1) -> Medium/Understanding (2) -> Hard/Applying (3) -> Analyzing (4)
+  /// 3. Competency: Foundational Number Sense -> Basic Operations -> Early Concepts -> Advanced
+  ///
+  /// For retakes, unseen questions within the age-appropriate pool are preferred,
+  /// backfilling from seen questions within the same age-appropriate pool so lower-grade
+  /// students never receive upper-grade questions.
+  static List<Question> _selectGradeAppropriateAttempt({
+    required List<Question> pool,
+    required int studentGrade,
+    required Set<String> usedQuestionsHistory,
+    required int count,
+  }) {
+    // Initial shuffle ensures variety among items having equivalent priority score
+    final shuffledPool = QuestionShuffleService.fisherYatesShuffle(pool);
+
+    // Split into age-appropriate early grades (Grades 1–3) and higher grades (Grades 4+)
+    final appropriatePool = shuffledPool.where((q) => q.grade <= 3).toList();
+    final fallbackPool = shuffledPool.where((q) => q.grade > 3).toList();
+
+    // Sort helper using easeScore
+    int compareByEase(Question a, Question b) {
+      final scoreA = _easeScore(a, studentGrade);
+      final scoreB = _easeScore(b, studentGrade);
+      return scoreA.compareTo(scoreB);
+    }
+
+    final selected = <Question>[];
+
+    // Primary selection from age-appropriate pool (Grades 1–3)
+    final unseenAppropriate = appropriatePool
+        .where((q) => !usedQuestionsHistory.contains(q.id))
+        .toList()
+      ..sort(compareByEase);
+
+    final seenAppropriate = appropriatePool
+        .where((q) => usedQuestionsHistory.contains(q.id))
+        .toList()
+      ..sort(compareByEase);
+
+    // 1. Take unseen appropriate questions first
+    selected.addAll(unseenAppropriate.take(count));
+
+    // 2. If needed, backfill from seen appropriate questions
+    if (selected.length < count) {
+      final needed = count - selected.length;
+      selected.addAll(seenAppropriate.take(needed));
+    }
+
+    // 3. Safety fallback: only if the question bank itself has fewer than [count]
+    // questions marked for Grades 1–3, backfill from the easiest available higher-grade items.
+    if (selected.length < count) {
+      final unseenFallback = fallbackPool
+          .where((q) => !usedQuestionsHistory.contains(q.id))
+          .toList()
+        ..sort(compareByEase);
+
+      final seenFallback = fallbackPool
+          .where((q) => usedQuestionsHistory.contains(q.id))
+          .toList()
+        ..sort(compareByEase);
+
+      final neededUnseen = count - selected.length;
+      selected.addAll(unseenFallback.take(neededUnseen));
+
+      if (selected.length < count) {
+        final neededSeen = count - selected.length;
+        selected.addAll(seenFallback.take(neededSeen));
+      }
+    }
+
+    // Preserve randomization of presentation order in the assessment
+    return QuestionShuffleService.fisherYatesShuffle(selected);
+  }
+
+  /// Validates that a question has complete and non-empty prompt, answer, and choices.
+  static bool isValidQuestion(Question q) {
+    if (q.id.trim().isEmpty) return false;
+    if (q.questionText.trim().isEmpty) return false;
+    if (q.correctAnswer == null) return false;
+    final ansStr = q.correctAnswer.toString().trim();
+    if (ansStr.isEmpty) return false;
+    if (q.choices != null) {
+      if (q.choices!.isEmpty) return false;
+      for (final c in q.choices!) {
+        if (c.trim().isEmpty) return false;
+      }
+    }
+    return true;
+  }
+
+  /// Numeric rank for difficulty: Easy/Knowing (1) is easiest; Hard/Applying (3) is hardest.
+  static int _difficultyRank(Question q) {
+    final d = q.cognitiveDomain.toLowerCase().trim();
+    if (d == 'easy' || d == 'knowing') return 1;
+    if (d == 'medium' || d == 'understanding') return 2;
+    if (d == 'hard' || d == 'applying') return 3;
+    if (d == 'analyzing') return 4;
+    return 2;
+  }
+
+  /// Numeric rank for competency: foundational number sense & counting first.
+  static int _competencyRank(Question q) {
+    final text = '${q.competencyCode} ${q.contentDomain} ${q.competencyText} ${q.questionText}'.toLowerCase();
+    // Foundational number sense / counting / recognition / discrimination
+    if (text.contains('identification') ||
+        text.contains('count') ||
+        text.contains('number sense') ||
+        text.contains('m1ns') ||
+        text.contains('place value') ||
+        text.contains('discrimination')) {
+      return 1;
+    }
+    // Basic operations: addition & subtraction
+    if (text.contains('addition') ||
+        text.contains('subtraction') ||
+        text.contains('m2op') ||
+        text.contains('add ') ||
+        text.contains('subtract')) {
+      return 2;
+    }
+    // Patterns, geometry, measurement, time, mass
+    if (text.contains('pattern') ||
+        text.contains('geometry') ||
+        text.contains('measurement') ||
+        text.contains('time') ||
+        text.contains('mass')) {
+      return 3;
+    }
+    // Fractions, multiplication, division
+    if (text.contains('fraction') ||
+        text.contains('multiplication') ||
+        text.contains('multiply') ||
+        text.contains('division') ||
+        text.contains('divide') ||
+        text.contains('m3op')) {
+      return 4;
+    }
+    return 5;
+  }
+
+  /// Grade appropriateness tier relative to student grade.
+  static int _gradeAppropriatenessTier(Question q, int studentGrade) {
+    if (studentGrade == 1) {
+      if (q.grade == 1) return 1; // Grade 1: on-level
+      if (q.grade == 2) return 2; // Grade 2: next step
+      if (q.grade == 3) return 3; // Grade 3: upper foundational
+      return 4 + q.grade; // Grade 4+: upper grades (fallback only)
+    } else if (studentGrade == 2) {
+      if (q.grade <= 2) return 1; // Grades 1 & 2: foundational & on-level
+      if (q.grade == 3) return 2; // Grade 3: next step
+      return 4 + q.grade; // Grade 4+: upper grades (fallback only)
+    } else {
+      // studentGrade == 3
+      if (q.grade <= 3) return 1; // Grades 1–3: foundational & on-level
+      return 4 + q.grade; // Grade 4+: upper grades (fallback only)
+    }
+  }
+
+  /// Composite ease score (lower is easier / more age-appropriate).
+  static int _easeScore(Question q, int studentGrade) {
+    final tier = _gradeAppropriatenessTier(q, studentGrade);
+    final diff = _difficultyRank(q);
+    final comp = _competencyRank(q);
+    final qGrade = q.grade;
+    return (tier * 1000) + (diff * 100) + (comp * 10) + qGrade;
   }
 
   /// Fetches the full DIAGNOSTIC bank from Supabase `/questions` typed into [Question].

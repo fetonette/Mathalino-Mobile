@@ -50,8 +50,20 @@ class MathalinoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LevelProgressProvider()),
         ChangeNotifierProvider(create: (_) => LevelProvider()),
         ChangeNotifierProvider(create: (_) => RemediationProvider()),
-        ChangeNotifierProvider(create: (_) => DiagnosticProvider()),
-        ChangeNotifierProvider(create: (_) => PostAssessmentProvider()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = DiagnosticProvider();
+            AuthService.registerSignOutCallback(provider.resetDiagnostic);
+            return provider;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = PostAssessmentProvider();
+            AuthService.registerSignOutCallback(provider.reset);
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => LearnProvider()),
       ],
       child: MaterialApp(

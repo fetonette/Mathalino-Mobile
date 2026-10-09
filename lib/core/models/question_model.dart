@@ -94,6 +94,15 @@ class QuestionModel {
   /// Rich representation of choices in display order with stable identities.
   final List<ChoiceOption>? storedChoiceOptions;
 
+  /// Optional path to an asset image illustration (e.g. for Levels 1–20 visual figures).
+  final String? imagePath;
+
+  /// Optional activity type (e.g. "Visual Count", "Drag & Drop", "Visual Compare").
+  final String? activity;
+
+  /// Optional game UI interaction hint (e.g. "Show the objects large. Student taps the matching number.").
+  final String? gameUi;
+
   const QuestionModel({
     required this.questionId,
     required this.level,
@@ -105,6 +114,9 @@ class QuestionModel {
     required this.correctAnswer,
     this.challengeGroup,
     this.attemptNumber = 0,
+    this.imagePath,
+    this.activity,
+    this.gameUi,
     Map<String, String>? originalChoices,
     String? originalCorrectAnswer,
     this.choiceKeyMapping,
@@ -209,6 +221,9 @@ class QuestionModel {
           : correctAnswer,
       challengeGroup: challengeGroup,
       attemptNumber: attemptNumber,
+      imagePath: imagePath,
+      activity: activity,
+      gameUi: gameUi,
       originalChoices: sourceChoices,
       originalCorrectAnswer: sourceCorrectAnswer,
       choiceKeyMapping: newMapping,
@@ -216,7 +231,7 @@ class QuestionModel {
     );
   }
 
-  /// Parses a [QuestionModel] from a Firestore data [Map] (+ its doc id).
+  /// Parses a [QuestionModel] from a Firestore/Supabase data [Map] (+ its doc id).
   factory QuestionModel.fromMap(Map<String, dynamic> map, String docId) {
     final rawChoices = map['choices'];
     Map<String, String> choicesMap = const {};
@@ -237,17 +252,47 @@ class QuestionModel {
 
     final origAnswer = map['correct_answer']?.toString() ?? '';
 
+    final rawLevel = map['level'];
+    final level = rawLevel is int
+        ? rawLevel
+        : int.tryParse(rawLevel?.toString() ?? '') ?? 1;
+
+    final rawCg = map['challenge_group'];
+    final challengeGroup = rawCg is int
+        ? rawCg
+        : int.tryParse(rawCg?.toString() ?? '');
+
+    final rawAtt = map['attempt_number'];
+    final attemptNumber = rawAtt is int
+        ? rawAtt
+        : int.tryParse(rawAtt?.toString() ?? '') ?? 0;
+
+    final rawData = map['raw_data'] is Map ? (map['raw_data'] as Map) : null;
+    final imagePath = map['image_path']?.toString() ??
+        map['imagePath']?.toString() ??
+        rawData?['image_path']?.toString() ??
+        rawData?['imagePath']?.toString();
+    final activity = map['activity']?.toString() ??
+        rawData?['activity']?.toString();
+    final gameUi = map['game_ui']?.toString() ??
+        map['gameUi']?.toString() ??
+        rawData?['game_ui']?.toString() ??
+        rawData?['gameUi']?.toString();
+
     return QuestionModel(
       questionId: docId,
-      level: (map['level'] ?? 1) as int,
+      level: level,
       domain: map['domain']?.toString() ?? '',
       gradeTag: map['grade_tag']?.toString() ?? '',
       difficulty: map['difficulty']?.toString() ?? 'Preparation',
       questionText: map['question_text']?.toString() ?? '',
       choices: choicesMap,
       correctAnswer: origAnswer,
-      challengeGroup: map['challenge_group'] as int?,
-      attemptNumber: (map['attempt_number'] ?? 0) as int,
+      challengeGroup: challengeGroup,
+      attemptNumber: attemptNumber,
+      imagePath: (imagePath != null && imagePath.isNotEmpty) ? imagePath : null,
+      activity: (activity != null && activity.isNotEmpty) ? activity : null,
+      gameUi: (gameUi != null && gameUi.isNotEmpty) ? gameUi : null,
       originalChoices: choicesMap,
       originalCorrectAnswer: origAnswer,
     );
@@ -274,6 +319,9 @@ class QuestionModel {
       'correct_answer': originalCorrectAnswer,
       'challenge_group': challengeGroup,
       'attempt_number': attemptNumber,
+      if (imagePath != null) 'image_path': imagePath,
+      if (activity != null) 'activity': activity,
+      if (gameUi != null) 'game_ui': gameUi,
     };
   }
 

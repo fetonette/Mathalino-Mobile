@@ -3,10 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/learn_content_models.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/learn_provider.dart';
 import '../../providers/level_progress_provider.dart';
+import '../../widgets/logout_dialog.dart';
 import 'module_lessons_screen.dart';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SCREEN 1 - LEARN
+// ═════════════════════════════════════════════════════════════════════════════
 
 class AdventureLearnView extends StatefulWidget {
   const AdventureLearnView({super.key});
@@ -44,361 +49,460 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
         key: 'number_sense',
         title: 'Number Sense',
         description: 'Build confidence with numbers and place value.',
-        icon: Icons.calculate_outlined,
+        isLocked: true,
       ),
       (
         key: 'operations',
         title: 'Operations',
-        description: 'Practice addition, subtraction, multiplication, and division.',
-        icon: Icons.functions,
+        description:
+            'Practice addition, subtraction, multiplication, and division.',
+        isLocked: false,
       ),
       (
         key: 'fractions',
         title: 'Fractions',
         description: 'Explore parts, wholes, and equivalent fractions.',
-        icon: Icons.pie_chart_outline,
+        isLocked: false,
       ),
       (
         key: 'geometry',
         title: 'Geometry',
         description: 'Learn shapes, space, measurement, and patterns.',
-        icon: Icons.category_outlined,
+        isLocked: false,
       ),
     ];
 
-    return _SectionPage(
-      title: 'Learn',
-      subtitle: 'Choose a module and keep building your math skills.',
-      icon: Icons.menu_book_rounded,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Grade 6 unsupported banner (§8.5)
-          if (content != null && !content.isSupported) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFBBF24).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFFBBF24).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title row with faded mascot decoration
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: Color(0xFFFBBF24), size: 24),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Grade 6 Content Coming Soon',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                  // Faded pencil mascot at top right (78x114, opacity 0.35, pointer-events none)
+                  Positioned(
+                    top: -6,
+                    right: 4,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: 0.35,
+                        child: Image.asset(
+                          'assets/mascots/mascot_pencil.png',
+                          width: 78,
+                          height: 114,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(
+                            width: 78,
+                            height: 114,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          content.note ??
-                              'Grade 6 assessment-mapped lessons are being prepared according to the RMA instrument.',
-                          style: const TextStyle(
-                            color: Color(0xFFCBD5E1),
-                            fontSize: 13,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          if (learn.isLoading && content == null) ...[
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: CircularProgressIndicator(color: AppColors.accent),
-              ),
-            ),
-          ] else if (learn.errorMessage != null && content == null) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    learn.errorMessage!,
-                    style: const TextStyle(color: Color(0xFFFCA5A5)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => learn.loadForStudent(profile),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 700 ? 2 : 1;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: columns == 2 ? 2.1 : 2.5,
-                  ),
-                  itemCount: moduleDefs.length,
-                  itemBuilder: (context, index) {
-                    final def = moduleDefs[index];
-                    final module = content?.getModule(def.key);
-                    final topicCount = module?.topics.length ?? 0;
-
-                    final badgeText = content == null
-                        ? null
-                        : (!content.isSupported || topicCount == 0
-                            ? 'Coming Soon'
-                            : '$topicCount Lesson${topicCount == 1 ? '' : 's'}');
-
-                    return _ModuleCard(
-                      title: def.title,
-                      description: module?.description.isNotEmpty == true
-                          ? module!.description
-                          : def.description,
-                      icon: def.icon,
-                      badgeText: badgeText,
-                      onTap: () {
-                        if (module != null) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ModuleLessonsScreen(
-                                module: module,
-                                gradeLevel: gradeLevel,
-                              ),
-                            ),
-                          );
-                        } else {
-                          // Fallback placeholder module
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ModuleLessonsScreen(
-                                module: LearnModule(
-                                  id: 'grade_${gradeLevel}_${def.key}',
-                                  name: def.title,
-                                  description: def.description,
-                                  note: 'Content is being prepared.',
-                                  topics: const [],
-                                ),
-                                gradeLevel: gradeLevel,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class AdventureProgressView extends StatelessWidget {
-  const AdventureProgressView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = context.watch<AuthService>().studentProfile;
-    final levels = context.watch<LevelProgressProvider>();
-    final completed = List.generate(60, (index) => index + 1)
-        .where((level) => levels.getLevelState(level) == LevelState.completed)
-        .length;
-    final levelProgress = completed / 60;
-
-    return _SectionPage(
-      title: 'Progress',
-      subtitle: 'See how your learning is growing across Mathalino.',
-      icon: Icons.insights_rounded,
-      child: Column(
-        children: [
-          _ProgressCard(
-            title: 'Overall learning progress',
-            value: levelProgress,
-            label: '$completed of 60 levels completed',
-            color: AppColors.success,
-          ),
-          const SizedBox(height: 16),
-          _StatGrid(
-            items: [
-              _StatItem(
-                'Current level',
-                '${levels.currentLevel}',
-                Icons.flag_outlined,
-              ),
-              _StatItem(
-                'Assessment score',
-                '${profile?.diagnosticScore ?? 0}/20',
-                Icons.assignment_turned_in_outlined,
-              ),
-              _StatItem(
-                'Assessment result',
-                '${(profile?.diagnosticPercentage ?? 0).toStringAsFixed(0)}%',
-                Icons.analytics_outlined,
-              ),
-              _StatItem('Modules completed', '0', Icons.task_alt_outlined),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _InfoPanel(
-            title: 'Activity performance',
-            icon: Icons.bar_chart_rounded,
-            message:
-                'Complete Learn modules and activities to see your scores and strengths here.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AdventureProfileView extends StatelessWidget {
-  const AdventureProfileView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = context.watch<AuthService>().studentProfile ??
-        context.watch<LevelProgressProvider>().studentProfile;
-    final rows = <_ProfileRow>[
-
-      _ProfileRow(
-        'Name',
-        profile?.displayName.isNotEmpty == true ? profile!.displayName : '—',
-      ),
-      _ProfileRow(
-        'LRN',
-        profile?.lrn.isNotEmpty == true ? profile!.lrn : 'Not available',
-      ),
-      _ProfileRow(
-        'Grade level',
-        profile?.gradeLevelLabel.isNotEmpty == true
-            ? profile!.gradeLevelLabel
-            : 'Grade ${profile?.gradeLevel ?? 1}',
-      ),
-      _ProfileRow(
-        'Section',
-        profile?.section.isNotEmpty == true ? profile!.section : '—',
-      ),
-      _ProfileRow('Placement', profile?.assignedCategory ?? 'Not assessed'),
-      _ProfileRow('Starting level', 'Level ${profile?.startingLevel ?? 1}'),
-    ];
-
-    // Status is only shown when the teacher has explicitly set it to non-active.
-    final status = profile?.studentStatus;
-    if (status != null && status.isNotEmpty && status != 'active') {
-      rows.add(_ProfileRow('Status', status));
-    }
-
-    // Parent/guardian block — shown when a parent is linked OR when the
-    // teacher has provided parent contact details.
-    final linkedUid = profile?.linkedParentUid ?? '';
-    final isLinked = profile?.isParentLinked == true || linkedUid.isNotEmpty;
-    if (isLinked) {
-      rows.add(_ProfileRow('Parent Linked', 'Yes'));
-    }
-    final parentName = profile?.parentGuardianName ?? '';
-    if (parentName.isNotEmpty) {
-      rows.add(_ProfileRow('Parent/Guardian', parentName));
-    }
-    if ((profile?.parentGuardianEmail ?? '').isNotEmpty) {
-      rows.add(_ProfileRow('Parent email', profile!.parentGuardianEmail));
-    }
-    if ((profile?.parentGuardianPhone ?? '').isNotEmpty) {
-      rows.add(_ProfileRow('Parent phone', profile!.parentGuardianPhone));
-    }
-
-    return _SectionPage(
-      title: 'Profile',
-      subtitle: 'Your Mathalino account information.',
-      icon: Icons.account_circle_rounded,
-      child: _InfoPanel(
-        title: profile?.displayName ?? 'Student',
-        icon: Icons.person_outline_rounded,
-        rows: rows,
-      ),
-    );
-  }
-}
-
-class _SectionPage extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget child;
-
-  const _SectionPage({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF8FAFC),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, color: AppColors.accent, size: 30),
-                    const SizedBox(width: 12),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 15,
+                  ),
+
+                  // Title + Subtitle
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.menu_book_rounded,
+                            color: Color(0xFFD97706),
+                            size: 34,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Learn',
+                            style: AppTokens.baloo2(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              color: AppTokens.headingIndigo,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 230),
+                        child: Text(
+                          'Choose a module and keep building your math skills.',
+                          style: AppTokens.nunito(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTokens.secondaryText,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Grade 6 unsupported banner (§8.5)
+              if (content != null && !content.isSupported) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTokens.accentOrange.withValues(alpha: 0.4),
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Color(0xFFD97706),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Grade 6 Content Coming Soon',
+                              style: AppTokens.baloo2(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppTokens.bodyText,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              content.note ??
+                                  'Grade 6 assessment-mapped lessons are being prepared according to the RMA instrument.',
+                              style: AppTokens.nunito(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTokens.secondaryText,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                child,
+              ],
+
+              // Loading & Error states
+              if (learn.isLoading && content == null) ...[
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(
+                      color: AppTokens.primaryIndigo,
+                    ),
+                  ),
+                ),
+              ] else if (learn.errorMessage != null && content == null) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFF87171),
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        learn.errorMessage!,
+                        style: AppTokens.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF991B1B),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => learn.loadForStudent(profile),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTokens.primaryIndigo,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Module cards vertical list
+                for (var i = 0; i < moduleDefs.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 16),
+                  _buildModuleCard(
+                    context: context,
+                    def: moduleDefs[i],
+                    content: content,
+                    gradeLevel: gradeLevel,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModuleCard({
+    required BuildContext context,
+    required ({String key, String title, String description, bool isLocked})
+        def,
+    required GradeLearnContent? content,
+    required int gradeLevel,
+  }) {
+    final module = content?.getModule(def.key);
+    final topicCount = module?.topics.length ?? 0;
+
+    final isLocked = def.isLocked;
+
+    // Badge styling & colors per design tokens
+    final Color badgeBg;
+    final Color badgeRing;
+    final Widget badgeIcon;
+
+    switch (def.key) {
+      case 'number_sense':
+        badgeBg = const Color(0xFFE7E5F2);
+        badgeRing = const Color(0xFFC7C3E8);
+        badgeIcon = const Icon(
+          Icons.calculate_outlined,
+          color: Color(0xFF5B5780),
+          size: 26,
+        );
+        break;
+      case 'operations':
+        badgeBg = AppTokens.primaryIndigo;
+        badgeRing = const Color(0xFF818CF8);
+        badgeIcon = Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Text(
+              '+ −',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              '× ÷',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'fractions':
+        badgeBg = const Color(0xFF047857);
+        badgeRing = const Color(0xFF6EE7B7);
+        badgeIcon = const Icon(
+          Icons.pie_chart_outline_rounded,
+          color: Colors.white,
+          size: 26,
+        );
+        break;
+      case 'geometry':
+        badgeBg = const Color(0xFFD97706);
+        badgeRing = const Color(0xFFFDE68A);
+        badgeIcon = const Icon(
+          Icons.category_outlined,
+          color: Colors.white,
+          size: 26,
+        );
+        break;
+      default:
+        badgeBg = AppTokens.primaryIndigo;
+        badgeRing = const Color(0xFF818CF8);
+        badgeIcon = const Icon(
+          Icons.book_rounded,
+          color: Colors.white,
+          size: 26,
+        );
+    }
+
+    // Card styling
+    final Color cardBg = isLocked ? const Color(0xFFF3F0FA) : Colors.white;
+    final Color cardBorder =
+        isLocked ? const Color(0xFFE0DCEF) : AppTokens.cardBorder;
+    final Color cardShadow =
+        isLocked ? const Color(0xFFE0DCEF) : AppTokens.cardBorder;
+    final Color titleColor =
+        isLocked ? const Color(0xFF5B5780) : AppTokens.bodyText;
+    final Color descColor =
+        isLocked ? const Color(0xFF5B5780) : AppTokens.secondaryText;
+    final Color chevronColor =
+        isLocked ? const Color(0xFF5B5780) : AppTokens.headingIndigo;
+
+    // Chip text
+    final String chipText;
+    final Color chipBg;
+    final Color chipTextColor;
+
+    if (isLocked) {
+      chipText = 'Coming Soon';
+      chipBg = const Color(0xFFE7E5F2);
+      chipTextColor = const Color(0xFF5B5780);
+    } else {
+      chipText = '$topicCount Lesson${topicCount == 1 ? '' : 's'}';
+      chipBg = AppTokens.navActivePill;
+      chipTextColor = AppTokens.headingIndigo;
+    }
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 100),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: cardBorder, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: cardShadow,
+            offset: const Offset(0, 6),
+            blurRadius: 0,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: isLocked
+              ? null
+              : () {
+                  if (module != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ModuleLessonsScreen(
+                          module: module,
+                          gradeLevel: gradeLevel,
+                        ),
+                      ),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ModuleLessonsScreen(
+                          module: LearnModule(
+                            id: 'grade_${gradeLevel}_${def.key}',
+                            name: def.title,
+                            description: def.description,
+                            note: 'Content is being prepared.',
+                            topics: const [],
+                          ),
+                          gradeLevel: gradeLevel,
+                        ),
+                      ),
+                    );
+                  }
+                },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                // 56px round icon badge (4px ring)
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: badgeBg,
+                    border: Border.all(color: badgeRing, width: 4),
+                  ),
+                  child: Center(child: badgeIcon),
+                ),
+                const SizedBox(width: 14),
+                // Title + chip + description
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            def.title,
+                            style: AppTokens.baloo2(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                              color: titleColor,
+                              height: 1.1,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              chipText,
+                              style: AppTokens.baloo2(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: chipTextColor,
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        module?.description.isNotEmpty == true
+                            ? module!.description
+                            : def.description,
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: descColor,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: chevronColor,
+                  size: 26,
+                ),
               ],
             ),
           ),
@@ -408,265 +512,980 @@ class _SectionPage extends StatelessWidget {
   }
 }
 
-class _ModuleCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final VoidCallback? onTap;
-  final String? badgeText;
+// ═════════════════════════════════════════════════════════════════════════════
+// SCREEN 2 - PROGRESS
+// ═════════════════════════════════════════════════════════════════════════════
 
-  const _ModuleCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-    this.onTap,
-    this.badgeText,
+class AdventureProgressView extends StatelessWidget {
+  final VoidCallback? onNavigateToLearn;
+
+  const AdventureProgressView({
+    super.key,
+    this.onNavigateToLearn,
   });
+
+  String _getHeadline(int completed) {
+    if (completed == 0) return 'Start your math journey!';
+    if (completed < 15) return 'Great start, keep going!';
+    if (completed < 30) return "You're making great progress!";
+    if (completed < 45) return "You're almost halfway there!";
+    if (completed < 60) return "You're so close to the finish!";
+    return 'Incredible! All levels completed!';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFF1E293B),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFF334155)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
+    final profile = context.watch<AuthService>().studentProfile;
+    final levels = context.watch<LevelProgressProvider>();
+
+    final completed = List.generate(60, (index) => index + 1)
+        .where((level) => levels.getLevelState(level) == LevelState.completed)
+        .length;
+    final levelProgress = completed / 60;
+    final percentage = (levelProgress * 100).round();
+    final headline = _getHeadline(completed);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CircleAvatar(
-                backgroundColor: AppColors.accent.withValues(alpha: .18),
-                child: Icon(icon, color: AppColors.accent),
+              // Title: "My Progress" (Baloo 2, 28px/800)
+              Text(
+                'My Progress',
+                style: AppTokens.baloo2(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppTokens.bodyText,
+                ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(height: 16),
+
+              // Hero card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTokens.cardBorder, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppTokens.cardBorder,
+                      offset: Offset(0, 6),
+                      blurRadius: 0,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 18, 12, 18),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (badgeText != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: badgeText == 'Coming Soon'
-                                  ? const Color(0xFFFBBF24)
-                                      .withValues(alpha: 0.15)
-                                  : AppColors.accent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
+                    // Left: headline, green bar, label + percentage
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            headline,
+                            style: AppTokens.baloo2(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppTokens.bodyText,
+                              height: 1.15,
                             ),
-                            child: Text(
-                              badgeText!,
-                              style: TextStyle(
-                                color: badgeText == 'Coming Soon'
-                                    ? const Color(0xFFFBBF24)
-                                    : AppColors.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          const SizedBox(height: 12),
+                          // Green progress bar (track #D1FAE5, fill #047857, 17px high, round)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(9),
+                            child: Container(
+                              height: 17,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD1FAE5),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width = constraints.maxWidth *
+                                      levelProgress.clamp(0.0, 1.0);
+                                  return Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      width: width,
+                                      height: 17,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF047857),
+                                        borderRadius: BorderRadius.circular(9),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '$completed of 60 levels completed',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTokens.nunito(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTokens.secondaryText,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$percentage%',
+                                style: AppTokens.baloo2(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF047857),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        color: Color(0xFFCBD5E1),
-                        height: 1.3,
+                    const SizedBox(width: 8),
+                    // Thumbs-up mascot inside card, right side (~62x91, pointer-events none)
+                    IgnorePointer(
+                      child: Image.asset(
+                        'assets/mascots/mascot_thumbs_up.png',
+                        width: 62,
+                        height: 91,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(
+                          width: 62,
+                          height: 91,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+              const SizedBox(height: 16),
+
+              // Three stat tiles (3-column grid, 10px gap, equal height)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildStatTile(
+                        icon: Icons.flag_outlined,
+                        iconColor: AppTokens.primaryIndigo,
+                        value: '${levels.currentLevel}',
+                        label: 'Current level',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildStatTile(
+                        icon: Icons.check_box_outlined,
+                        iconColor: const Color(0xFFD97706),
+                        value: '${profile?.diagnosticScore ?? 0}/20',
+                        label:
+                            'Placement\nquiz · ${(profile?.diagnosticPercentage ?? 0).toStringAsFixed(0)}%',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildStatTile(
+                        icon: Icons.menu_book_outlined,
+                        iconColor: const Color(0xFF047857),
+                        value: '0',
+                        label: 'Modules\ndone',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Activity performance card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTokens.cardBorder, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppTokens.cardBorder,
+                      offset: Offset(0, 6),
+                      blurRadius: 0,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Activity performance',
+                      style: AppTokens.baloo2(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTokens.bodyText,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Empty state illustration
+                    const Center(
+                      child: _ActivityBarChartIllustration(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Message
+                    Text(
+                      'Finish a Learn activity and your scores will show up here.',
+                      textAlign: TextAlign.center,
+                      style: AppTokens.nunito(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTokens.secondaryText,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Primary "Go to Learn" button
+                    Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: AppTokens.primaryIndigo,
+                        borderRadius: BorderRadius.circular(27),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppTokens.primaryShadow,
+                            offset: Offset(0, 5),
+                            blurRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(27),
+                          onTap: onNavigateToLearn,
+                          child: Center(
+                            child: Text(
+                              'Go to Learn',
+                              style: AppTokens.baloo2(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class _ProgressCard extends StatelessWidget {
-  final String title;
-  final double value;
-  final String label;
-  final Color color;
-
-  const _ProgressCard({
-    required this.title,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
+  Widget _buildStatTile({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTokens.cardBorder, width: 2),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Icon(icon, color: iconColor, size: 24),
+          const SizedBox(height: 8),
           Text(
-            title,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            value,
+            style: AppTokens.baloo2(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppTokens.bodyText,
+              height: 1.1,
+            ),
           ),
-          const SizedBox(height: 14),
-          LinearProgressIndicator(
-            value: value,
-            minHeight: 10,
-            color: color,
-            backgroundColor: color.withValues(alpha: .15),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTokens.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTokens.secondaryText,
+              height: 1.2,
+            ),
           ),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
-class _StatItem {
-  final String label;
-  final String value;
-  final IconData icon;
-  const _StatItem(this.label, this.value, this.icon);
-}
-
-class _StatGrid extends StatelessWidget {
-  final List<_StatItem> items;
-  const _StatGrid({required this.items});
+/// Custom 3-bar illustration matching the design spec empty state
+class _ActivityBarChartIllustration extends StatelessWidget {
+  const _ActivityBarChartIllustration();
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final columns = constraints.maxWidth >= 650 ? 4 : 2;
-      return GridView.count(
-        crossAxisCount: columns,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.45,
-        children: items
-            .map(
-              (item) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(item.icon, color: AppColors.primary),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.value,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        item.label,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      height: 90,
+      child: CustomPaint(
+        painter: _BarChartPainter(),
+      ),
+    );
+  }
+}
+
+class _BarChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseLinePaint = Paint()
+      ..color = const Color(0xFFC7C3E8)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    final baselineY = size.height - 4;
+    canvas.drawLine(
+      Offset(4, baselineY),
+      Offset(size.width - 4, baselineY),
+      baseLinePaint,
+    );
+
+    // Bar 1: Purple outline & soft fill (h = 36)
+    final bar1Rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(10, baselineY - 36, 22, 36),
+      const Radius.circular(6),
+    );
+    final bar1Fill = Paint()..color = const Color(0xFFEEF2FF);
+    final bar1Stroke = Paint()
+      ..color = const Color(0xFF818CF8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRRect(bar1Rect, bar1Fill);
+    canvas.drawRRect(bar1Rect, bar1Stroke);
+
+    // Bar 2: Amber outline & soft fill (h = 56)
+    final bar2Rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(49, baselineY - 56, 22, 56),
+      const Radius.circular(6),
+    );
+    final bar2Fill = Paint()..color = const Color(0xFFFEF3C7);
+    final bar2Stroke = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRRect(bar2Rect, bar2Fill);
+    canvas.drawRRect(bar2Rect, bar2Stroke);
+
+    // Bar 3: Green dashed outline (h = 74)
+    final bar3X = 88.0;
+    final bar3W = 22.0;
+    final bar3H = 74.0;
+    final bar3Top = baselineY - bar3H;
+    final bar3Radius = 6.0;
+
+    final path = Path()
+      ..moveTo(bar3X, baselineY)
+      ..lineTo(bar3X, bar3Top + bar3Radius)
+      ..arcToPoint(
+        Offset(bar3X + bar3Radius, bar3Top),
+        radius: Radius.circular(bar3Radius),
+      )
+      ..lineTo(bar3X + bar3W - bar3Radius, bar3Top)
+      ..arcToPoint(
+        Offset(bar3X + bar3W, bar3Top + bar3Radius),
+        radius: Radius.circular(bar3Radius),
+      )
+      ..lineTo(bar3X + bar3W, baselineY);
+
+    final greenDashPaint = Paint()
+      ..color = const Color(0xFF047857)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    // Draw dashed path
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      const dashLength = 5.0;
+      const dashGap = 4.0;
+      while (distance < metric.length) {
+        final next = distance + dashLength;
+        final extract = metric.extractPath(
+          distance,
+          next > metric.length ? metric.length : next,
+        );
+        canvas.drawPath(extract, greenDashPaint);
+        distance = next + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SCREEN 3 - PROFILE (no top header)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class AdventureProfileView extends StatelessWidget {
+  const AdventureProfileView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = context.watch<AuthService>().studentProfile ??
+        context.watch<LevelProgressProvider>().studentProfile;
+    final levelProvider = context.watch<LevelProgressProvider>();
+
+    final String displayName = profile?.displayName.isNotEmpty == true
+        ? profile!.displayName
+        : 'fettiz';
+    final int currentLevel = levelProvider.currentLevel;
+    final int coins = profile?.stats.coins ?? 0;
+    final int xp = profile?.stats.totalXp ?? 0;
+    final String lrn = profile?.lrn.isNotEmpty == true
+        ? profile!.lrn
+        : '123456789018';
+    final String gradeLabel = profile?.gradeLevelLabel.isNotEmpty == true
+        ? profile!.gradeLevelLabel
+        : 'Grade ${profile?.gradeLevel ?? 4}';
+    final String section =
+        profile?.section.isNotEmpty == true ? profile!.section : 'Cute';
+    final String placement = profile?.assignedCategory.isNotEmpty == true
+        ? profile!.assignedCategory
+        : 'Intermediate';
+    final int startingLevel = profile?.startingLevel ?? 1;
+
+    final linkedUid = profile?.linkedParentUid ?? '';
+    final isLinked = profile?.isParentLinked == true || linkedUid.isNotEmpty;
+
+    final parentEmail = profile?.parentGuardianEmail ?? '';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title "Profile" (Baloo 2, 34px/800, #3730A3)
+              Text(
+                'Profile',
+                style: AppTokens.baloo2(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  color: AppTokens.headingIndigo,
                 ),
               ),
-            )
-            .toList(),
-      );
-    },
-  );
-}
+              const SizedBox(height: 16),
 
-class _InfoPanel extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final String? message;
-  final List<_ProfileRow>? rows;
-  const _InfoPanel({
-    required this.title,
-    required this.icon,
-    this.message,
-    this.rows,
-  });
+              // Hero card (radius 28, 3px border, shadow 0 6px 0 #E0E7FF)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTokens.cardBorder, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppTokens.cardBorder,
+                      offset: Offset(0, 6),
+                      blurRadius: 0,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        // 80px round avatar with 4px indigo border and mascot cropped inside
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFE0E7FF),
+                            border: Border.all(
+                              color: AppTokens.primaryIndigo,
+                              width: 4,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: Transform.translate(
+                              offset: const Offset(0, 8),
+                              child: Transform.scale(
+                                scale: 1.35,
+                                child: Image.asset(
+                                  'assets/mascots/mascot_thumbs_up.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder:
+                                      (context, error, stackTrace) =>
+                                          const Icon(
+                                    Icons.person_rounded,
+                                    size: 40,
+                                    color: AppTokens.primaryIndigo,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTokens.baloo2(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTokens.bodyText,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$gradeLabel · $section',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTokens.nunito(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTokens.secondaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Current Level: $currentLevel',
+                                maxLines: 1,
+                                style: AppTokens.baloo2(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTokens.orangeText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primary),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                    // Coins chip (white, orange border) & XP chip (white, indigo border)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 42,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(21),
+                              border: Border.all(
+                                color: AppTokens.accentOrange,
+                                width: 2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.monetization_on_rounded,
+                                  color: AppTokens.accentOrange,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    '$coins Coins',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTokens.baloo2(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTokens.bodyText,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 42,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(21),
+                              border: Border.all(
+                                color: AppTokens.primaryIndigo,
+                                width: 2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: AppTokens.primaryIndigo,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    '$xp XP',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTokens.baloo2(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTokens.primaryIndigo,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // "My details" card (white, radius 24, 2px border)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTokens.cardBorder, width: 2),
+                ),
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'My details',
+                      style: AppTokens.baloo2(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTokens.bodyText,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 1. Name
+                    _buildDetailRow(
+                      icon: Icons.person_outline_rounded,
+                      iconColor: AppTokens.primaryIndigo,
+                      iconBg: const Color(0xFFEEF2FF),
+                      label: 'Name',
+                      valueWidget: Text(
+                        displayName,
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 2. LRN
+                    _buildDetailRow(
+                      icon: Icons.badge_outlined,
+                      iconColor: const Color(0xFFD97706),
+                      iconBg: const Color(0xFFFEF3C7),
+                      label: 'LRN',
+                      valueWidget: Text(
+                        lrn,
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 3. Grade level
+                    _buildDetailRow(
+                      icon: Icons.school_outlined,
+                      iconColor: const Color(0xFF059669),
+                      iconBg: const Color(0xFFD1FAE5),
+                      label: 'Grade level',
+                      valueWidget: Text(
+                        gradeLabel,
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 4. Section
+                    _buildDetailRow(
+                      icon: Icons.people_outline_rounded,
+                      iconColor: const Color(0xFFDB2777),
+                      iconBg: const Color(0xFFFCE7F3),
+                      label: 'Section',
+                      valueWidget: Text(
+                        section,
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 5. Placement (indigo pill)
+                    _buildDetailRow(
+                      icon: Icons.check_box_outlined,
+                      iconColor: AppTokens.primaryIndigo,
+                      iconBg: const Color(0xFFEEF2FF),
+                      label: 'Placement',
+                      valueWidget: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0E7FF),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFC7C3E8),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          placement,
+                          style: AppTokens.baloo2(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppTokens.headingIndigo,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 6. Starting level
+                    _buildDetailRow(
+                      icon: Icons.flag_outlined,
+                      iconColor: const Color(0xFF0284C7),
+                      iconBg: const Color(0xFFE0F2FE),
+                      label: 'Starting level',
+                      valueWidget: Text(
+                        'Level $startingLevel',
+                        style: AppTokens.nunito(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 7. Parent linked (green pill "✓ Yes" or grey pill "No")
+                    _buildDetailRow(
+                      icon: Icons.link_rounded,
+                      iconColor: const Color(0xFF059669),
+                      iconBg: const Color(0xFFD1FAE5),
+                      label: 'Parent linked',
+                      valueWidget: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isLinked
+                              ? const Color(0xFFD1FAE5)
+                              : const Color(0xFFE7E5F2),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isLinked
+                                ? const Color(0xFFA7F3D0)
+                                : const Color(0xFFC7C3E8),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          isLinked ? '✓ Yes' : 'No',
+                          style: AppTokens.baloo2(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: isLinked
+                                ? const Color(0xFF047857)
+                                : const Color(0xFF5B5780),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildDivider(),
+
+                    // 8. Parent email (14px, one line, ellipsis)
+                    _buildDetailRow(
+                      icon: Icons.mail_outline_rounded,
+                      iconColor: const Color(0xFFD97706),
+                      iconBg: const Color(0xFFFEF3C7),
+                      label: 'Parent email',
+                      valueWidget: Text(
+                        parentEmail.isNotEmpty ? parentEmail : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTokens.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTokens.bodyText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // "Log out" button: white, 3px red border, solid shadow 0 5px 0 #FECACA
+              Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(27),
+                  border: Border.all(color: const Color(0xFFDC2626), width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0xFFFECACA),
+                      offset: Offset(0, 5),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () => confirmAndLogout(context),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.logout_rounded,
+                            color: Color(0xFFB91C1C),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Log out',
+                            style: AppTokens.baloo2(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFB91C1C),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          if (message != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              message!,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildDetailRow({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String label,
+    required Widget valueWidget,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          // 32px rounded-square tinted icon
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(9),
             ),
-          ],
-          if (rows != null) ...[
-            const SizedBox(height: 12),
-            ...rows!.map(
-              (row) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  row.label,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-                trailing: Text(
-                  row.value,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: AppTokens.nunito(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTokens.secondaryText,
             ),
-          ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: valueWidget,
+            ),
+          ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-class _ProfileRow {
-  final String label;
-  final String value;
-  const _ProfileRow(this.label, this.value);
+  static Widget _buildDivider() {
+    return Container(
+      height: 2,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      color: const Color(0xFFEEF0FF),
+    );
+  }
 }

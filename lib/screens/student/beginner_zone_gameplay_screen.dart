@@ -282,6 +282,32 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                       fontSize: 19,
                     ),
               ),
+              if (question.imagePath != null &&
+                  question.imagePath!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primaryLight.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: Image.asset(
+                        question.imagePath!,
+                        fit: BoxFit.contain,
+                        height: 130,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               ...choices.map(
                 (entry) => Padding(

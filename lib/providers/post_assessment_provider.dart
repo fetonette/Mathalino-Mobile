@@ -112,7 +112,7 @@ class PostAssessmentProvider extends ChangeNotifier {
   }
 
   /// Evaluates the post-assessment, computes domain mastery & growth,
-  /// and persists profile updates in Firestore.
+  /// and persists profile updates in Supabase.
   Future<PostAssessmentResult> submitPostAssessment({
     required String studentId,
     required StudentProfile profile,

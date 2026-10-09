@@ -37,11 +37,23 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
     if (!mounted) return;
     final authService = context.read<AuthService>();
     final diagnosticProvider = context.read<DiagnosticProvider>();
-    final profile = authService.studentProfile;
+    var profile = authService.studentProfile;
+    if (profile == null && authService.user != null) {
+      profile = await authService.ensureProfileLoaded();
+    }
+    if (!mounted) return;
+    final currentUserId = profile?.uid ?? authService.user?.id ?? '';
 
-    if (diagnosticProvider.questions.isEmpty) {
+    // If the provider has questions for another user, is incomplete/malformed,
+    // is already marked completed, or has no questions loaded yet, load a fresh 20-item diagnostic set.
+    final needsLoad = diagnosticProvider.questions.isEmpty ||
+        diagnosticProvider.questions.length != 20 ||
+        diagnosticProvider.loadedUserId != currentUserId ||
+        diagnosticProvider.isComplete;
+
+    if (needsLoad) {
       await diagnosticProvider.loadDiagnosticQuestions(
-        userId: profile?.uid ?? '',
+        userId: currentUserId,
         gradeLevel: profile?.gradeLevel ?? 1,
         usedQuestionsHistory: profile?.usedQuestionsHistory ?? [],
       );
@@ -63,7 +75,7 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
             profile ??
             StudentProfile(
               uid: userId,
-              lrn: '000000000000',
+              lrn: '',
               displayName: 'Student',
               role: 'student',
               gradeLevel: 1,
@@ -113,12 +125,16 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
   Widget build(BuildContext context) {
     final diagnosticProvider = context.watch<DiagnosticProvider>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Diagnostic Assessment'),
-        backgroundColor: AppColors.primary,
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Diagnostic Assessment'),
+          backgroundColor: AppColors.primary,
+          automaticallyImplyLeading: false,
+        ),
+        body: SafeArea(child: _buildBody(diagnosticProvider)),
       ),
-      body: SafeArea(child: _buildBody(diagnosticProvider)),
     );
   }
 
@@ -164,7 +180,24 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
 
     final question = provider.currentQuestion;
     if (question == null) {
-      return const Center(child: Text('No diagnostic questions available'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.quiz_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'No diagnostic questions available.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _initialize,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
     }
 
     return Column(
@@ -231,10 +264,10 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
               ),
             ),
             child: Padding(
-              key: ValueKey('card-${question.id}'),
+              key: ValueKey('card-${provider.currentIndex}-${question.id}'),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: QuestionCard(
-                key: ValueKey(question.id),
+                key: ValueKey('qc-${provider.currentIndex}-${question.id}'),
                 question: question,
                 onAnswerSelected: _handleAnswer,
               ),
