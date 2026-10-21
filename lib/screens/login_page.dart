@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/services/auth_service.dart';
+import '../core/services/supabase_service.dart';
 import '../core/theme/mathalino_tokens.dart';
 import '../widgets/chunky_3d_button.dart';
 import '../widgets/floating_math_tile.dart';
@@ -97,19 +98,86 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isSubmitting = false);
 
     if (success) {
-      final profile = authService.studentProfile;
-      if (profile != null && !profile.diagnosticCompleted) {
-        Navigator.pushReplacementNamed(context, '/diagnostic_welcome');
-      } else {
+      await _routeByDiagnosticStatus(authService);
+    } else {
+      _showErrorDialog(authService.errorMessage ?? 'Login failed');
+    }
+  }
+
+  /// Routes a freshly authenticated student based on trustworthy diagnostic
+  /// evidence:
+  ///  * completed  → Adventure Map (existing progress preserved, no retake).
+  ///  * none       → RMA welcome flow (genuinely new student).
+  ///  * indeterminate → a clear retry state; NEVER an automatic retake, so a
+  ///    transient read/RLS failure cannot send a returning student back to RMA.
+  Future<void> _routeByDiagnosticStatus(AuthService authService) async {
+    final status = await authService.resolveDiagnosticRouting();
+    if (!mounted) return;
+    switch (status) {
+      case DiagnosticCompletionStatus.completed:
         Navigator.pushReplacementNamed(
           context,
           '/adventure_map',
           arguments: const {'showWelcomeBack': true},
         );
-      }
-    } else {
-      _showErrorDialog(authService.errorMessage ?? 'Login failed');
+        break;
+      case DiagnosticCompletionStatus.none:
+        Navigator.pushReplacementNamed(context, '/diagnostic_welcome');
+        break;
+      case DiagnosticCompletionStatus.indeterminate:
+        _showProgressCheckRetryDialog(authService);
+        break;
     }
+  }
+
+  void _showProgressCheckRetryDialog(AuthService authService) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.wifi_tethering_error_rounded,
+                color: AppTokens.primaryIndigo),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Checking your progress',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'We could not confirm your saved progress right now. '
+          'You will NOT be asked to repeat the diagnostic. '
+          'Please check your internet connection and try again.',
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              setState(() => _isSubmitting = true);
+              await _routeByDiagnosticStatus(authService);
+              if (mounted) setState(() => _isSubmitting = false);
+            },
+            child: const Text('Retry'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              try {
+                await authService.logout();
+              } catch (_) {}
+            },
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showErrorDialog(String message) {

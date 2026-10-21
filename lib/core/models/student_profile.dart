@@ -32,6 +32,20 @@ class StudentStats {
   }
 }
 
+/// Tolerant truthiness for the diagnostic-completed flag so a value stored as
+/// `true`, `1`, or `"true"` (across Supabase/legacy encodings) is recognized.
+/// This only widens parsing of the existing flag; it does NOT treat scores or
+/// `current_level` as completion evidence.
+bool _truthyDiagnosticCompleted(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final s = value.toLowerCase().trim();
+    return s == 'true' || s == '1' || s == 'yes';
+  }
+  return false;
+}
+
 DateTime? _parseDateTime(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value;
@@ -168,9 +182,10 @@ class StudentProfile {
 
     final diagObj = map['diagnostic'] is Map ? (map['diagnostic'] as Map) : null;
 
-    final diagCompleted = map['diagnostic_completed'] == true ||
-        map['diagnosticCompleted'] == true ||
-        diagObj?['completed'] == true;
+    final diagCompleted = _truthyDiagnosticCompleted(
+          map['diagnostic_completed']) ||
+        _truthyDiagnosticCompleted(map['diagnosticCompleted']) ||
+        _truthyDiagnosticCompleted(diagObj?['completed']);
 
     final diagScore = (map['diagnostic_score'] ?? map['diagnosticScore'] ?? diagObj?['score'] ?? 0) as int;
 

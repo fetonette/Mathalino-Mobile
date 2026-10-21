@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../../core/models/student_profile.dart';
 import '../../core/services/game_logic_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/level_progress_provider.dart';
 import '../../providers/level_provider.dart';
 import '../../widgets/difficulty_badge.dart';
+import '../../widgets/hearts.dart';
+import '../../widgets/star_rating.dart';
 
 /// Zone gameplay screen for Levels 1–60 (all three zones), powered by the new
 /// [LevelProvider] which uses [QuestionBankService] + [GameLogicService].
@@ -87,7 +90,8 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
       // displays the combined feedback ("Correct!", score) directly, eliminating
       // the redundant popup dialog.
       if (provider.phase == PlayerPhase.levelComplete ||
-          provider.phase == PlayerPhase.adventureComplete) {
+          provider.phase == PlayerPhase.adventureComplete ||
+          provider.phase == PlayerPhase.outOfHearts) {
         return;
       }
       _feedbackDialogShowing = true;
@@ -130,6 +134,8 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                 _buildAdventureComplete(context, provider),
               PlayerPhase.needsTeacherSupport =>
                 _buildNeedsTeacherSupport(context, provider),
+              PlayerPhase.outOfHearts =>
+                _buildOutOfHearts(context, provider),
               PlayerPhase.levelFailed => _buildFailed(context, provider),
               PlayerPhase.idle => _buildIdle(context, provider),
               _ => _buildQuestion(context, provider),
@@ -200,14 +206,26 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
         ),
       ),
       actions: [
-        if (!provider.isLoading && provider.error == null)
+        if (!provider.isLoading && provider.error == null) ...[
+          // Hearts only for Preparation / Moderate levels; challenge levels
+          // keep their existing remediation flow and show none.
+          if (!provider.isChallengeLevel)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Center(
+                child: Hearts(
+                  hearts: provider.hearts,
+                  maxHearts: LevelProvider.kMaxHearts,
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: Center(
               child: DifficultyBadge(difficulty: displayDifficulty),
             ),
-          )
-        else
+          ),
+        ] else
           // Keeps the centered title balanced while loading.
           const SizedBox(width: 68),
       ],
@@ -428,6 +446,23 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                     fontWeight: FontWeight.w600,
                   ),
             ),
+            // Encouragement + age-appropriate hint on the last heart. Never
+            // reveals the correct answer.
+            if (!isCorrect &&
+                !provider.isChallengeLevel &&
+                provider.hearts == 1) ...[
+              const SizedBox(height: 12),
+              Text(
+                'You have one heart left — read the question again, take your '
+                "time, and think it through step by step. You've got this! \uD83D\uDCAA",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFFB45309),
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+              ),
+            ],
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -465,8 +500,15 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
   Widget _buildLevelComplete(BuildContext context, LevelProvider provider) {
     final levelProgressProvider =
         Provider.of<LevelProgressProvider>(context, listen: false);
-    final score = provider.score;
-    final attempted = provider.attemptedTotal;
+    // Non-Challenge levels display the universal three-chance score (X/3);
+    // Challenge levels keep their raw correct-count / attempted denominator.
+    // Presentation uses the exact same values the persistence path receives,
+    // so the on-screen rating always matches the stored
+    // `level_progress.stars` / `student_results.stars` values.
+    final score = provider.completedScore;
+    final maxScore = provider.completedMax;
+    final accuracyPct = StarRating.accuracyForScore(score, maxScore);
+    final stars = StarRating.starsForAccuracy(accuracyPct);
 
     return Center(
       child: SingleChildScrollView(
@@ -492,26 +534,30 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
               const Icon(Icons.check_circle, color: Colors.green, size: 80),
               const SizedBox(height: 16),
               Text(
-                'Correct!',
+                'Level ${widget.levelNumber} Complete!',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.w700,
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              StarRating(stars: stars),
+              const SizedBox(height: 10),
               Text(
-                'Level ${widget.levelNumber} Complete!',
+                StarRating.messageForStars(stars),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF1E293B),
                     ),
               ),
-              if (attempted > 0) ...[
+              if (maxScore > 0) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Score: $score/$attempted',
+                  provider.isChallengeLevel
+                      ? 'Score: $score/$maxScore'
+                      : 'Chance Score: $score/$maxScore',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
@@ -586,6 +632,10 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
         Provider.of<LevelProgressProvider>(context, listen: false);
     final score = provider.score;
     final attempted = provider.attemptedTotal;
+    // Presentation-only: same counters the persistence path uses, so the on-screen
+    // rating matches the stored `level_progress.stars` value.
+    final accuracyPct = StarRating.accuracyForScore(score, attempted);
+    final stars = StarRating.starsForAccuracy(accuracyPct);
 
     return Center(
       child: SingleChildScrollView(
@@ -611,16 +661,18 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
               const Icon(Icons.emoji_events, color: Colors.amber, size: 96),
               const SizedBox(height: 16),
               Text(
-                'Correct!',
+                'Adventure Complete!',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.w700,
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              StarRating(stars: stars),
+              const SizedBox(height: 10),
               Text(
-                'Adventure Complete!',
+                StarRating.messageForStars(stars),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -716,6 +768,105 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
               child: const Text('Back to Map'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Supportive, non-punishing screen shown when a Preparation / Moderate
+  /// level runs out of hearts. Offers an in-place "Try Again" (which resets
+  /// hearts/score/attempts and selects a new question WITHOUT writing to the
+  /// database or granting rewards) and "Back to Adventure Map" (which simply
+  /// exits — the level is NOT marked completed).
+  Widget _buildOutOfHearts(BuildContext context, LevelProvider provider) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Hearts(hearts: 0, maxHearts: 3),
+              const SizedBox(height: 16),
+              Image.asset(
+                'assets/mascots/mascot_thumbs_up.png',
+                height: 96,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.favorite_rounded,
+                  size: 72,
+                  color: AppTokens.accentOrange,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Let's Practice Again!",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: AppTokens.successGreen,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "You've used all your hearts on Level ${widget.levelNumber}, "
+                "and that's okay! Take a breath and try again — every mistake "
+                "helps you learn. You can restart this level or head back to "
+                "the Adventure Map.",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade700,
+                      height: 1.5,
+                    ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  onPressed: provider.restartLevelForHearts,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text(
+                    'Try Again',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.map_rounded),
+                  label: const Text('Back to Adventure Map'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

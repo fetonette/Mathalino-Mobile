@@ -158,18 +158,32 @@ class DailyChallengeService {
       throw DailyChallengeAlreadyCompletedException(date);
     }
 
-    // Fetch current user stats for streak resolution
+    // Fetch current user stats for reward baselines.
     final userProfile = await _db.fetchStudentProfile(userId);
     final currentXp = userProfile?.stats.totalXp ?? 0;
     final currentCoins = userProfile?.stats.coins ?? 0;
     final currentStreak = userProfile?.stats.streakDays ?? 0;
-    final lastActiveDate = userProfile?.stats.lastActiveDate;
 
-    // Resolve streak
-    final newStreak = _rewardsService.resolveStreak(
-      currentStreak: currentStreak,
-      lastActiveDate: lastActiveDate,
+    // Resolve the Daily Streak from the Daily-Challenge-only record
+    // (`student_daily_progress`), NEVER from `students.stats.lastActive` — that
+    // field is also written by Adventure Map gameplay, so using it would let
+    // ordinary level play wrongly advance the daily streak. The last *completed
+    // daily-challenge day* strictly before today is the true consecutive-day
+    // anchor. A failed/absent history read must never silently downgrade a known
+    // streak, so `unreadable` keeps the persisted value instead of resetting.
+    final anchor = await _db.fetchLastDailyChallengeDate(
+      userId: userId,
+      todayKey: dateKey,
     );
+    final int newStreak;
+    if (anchor.source == DailyChallengeAnchorSource.unreadable) {
+      newStreak = currentStreak == 0 ? 1 : currentStreak;
+    } else {
+      newStreak = _rewardsService.resolveStreak(
+        currentStreak: currentStreak,
+        lastActiveDate: anchor.date,
+      );
+    }
 
     // Compute rewards
     final xpAwarded = _rewardsService.calculateXp(
@@ -211,7 +225,6 @@ class DailyChallengeService {
         'total_xp': currentXp + xpAwarded,
         'coins': currentCoins + coinsAwarded,
         'streak_days': newStreak,
-        'last_active_date': nowIso,
       },
       resultData: {
         'student_id': userId,

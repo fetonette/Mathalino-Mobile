@@ -36,3 +36,9 @@ analyzer:
   exclude:
     - "files/**"
     - "lib/core/constants/diagnostic_usage_reference.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - macos/**
+    - linux/**

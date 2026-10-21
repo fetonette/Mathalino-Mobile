@@ -204,6 +204,19 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Resolves the post-login destination using trustworthy, live completion
+  /// evidence for the CURRENT authenticated user only.
+  ///
+  /// Always re-queries Supabase (never trusts the in-memory profile) so a
+  /// freshly signed-in account cannot inherit a previous account's completion
+  /// state. Returns [DiagnosticCompletionStatus.indeterminate] when the data
+  /// could not be determined, so callers avoid forcing a needless RMA retake.
+  Future<DiagnosticCompletionStatus> resolveDiagnosticRouting() async {
+    final uid = _user?.id;
+    if (uid == null) return DiagnosticCompletionStatus.indeterminate;
+    return _db.resolveDiagnosticCompletion(uid);
+  }
+
   /// Backward-compatible login method returning `Future<bool>` for UI compatibility.
   Future<bool> loginWithLRN(String lrn, String password) async {
     try {

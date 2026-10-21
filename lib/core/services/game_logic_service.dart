@@ -232,6 +232,27 @@ class GameLogicService {
     return d == 'Hard' || d == 'Super Hardcore' || d == 'Final Boss';
   }
 
+  /// Fixed score denominator for the universal three-chance scoring applied to
+  /// every non-Challenge (Preparation / Moderate) level. Matches the
+  /// three-heart attempt allowance enforced by `LevelProvider`.
+  static const int kMaxChances = 3;
+
+  /// Universal three-chance score for a COMPLETED non-Challenge level.
+  ///
+  /// A single correct answer ends such a level, so the number of attempts the
+  /// student needed maps directly to performance points out of [kMaxChances]:
+  ///   * correct on attempt 1 → 3
+  ///   * correct on attempt 2 → 2
+  ///   * correct on attempt 3 → 1
+  ///
+  /// This is a chance-based score — it is NOT the number of submissions and
+  /// NOT the number of correct questions, so it must never be presented as raw
+  /// accuracy. Three incorrect answers never complete a level (the
+  /// out-of-hearts path performs no scoring at all), so [attempts] is 1–3 at
+  /// every real call site; the clamp is purely defensive.
+  int chanceScoreForAttempts(int attempts) =>
+      (kMaxChances + 1 - attempts).clamp(1, kMaxChances);
+
   /// Returns the preparation range to remediate after failing challenge
   /// [level]. Throws [ArgumentError] for non-challenge levels.
   PreparationRange getPreparationRange(int level) {

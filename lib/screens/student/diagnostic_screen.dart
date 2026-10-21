@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/errors/diagnostic_exception.dart';
 import '../../core/models/placement_result.dart';
 import '../../core/models/student_profile.dart';
 import '../../core/services/auth_service.dart';
@@ -62,46 +63,103 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
 
   Future<void> _handleAnswer(dynamic answer) async {
     final diagnosticProvider = context.read<DiagnosticProvider>();
+    final isComplete = diagnosticProvider.answerCurrentQuestion(answer);
+
+    if (isComplete) {
+      // All questions answered — submit the diagnostic.
+      await _submitDiagnostic();
+    }
+  }
+
+  /// Submits the completed diagnostic and reacts to the safe, typed outcomes:
+  ///  * DIAGNOSTIC_ALREADY_COMPLETED → route to Adventure Map (never fabricate a
+  ///    Beginner/Level-1 result for a student whose RMA is already saved).
+  ///  * DIAGNOSTIC_STATUS_UNCONFIRMED → offer a Retry; keep answers, save nothing.
+  ///  * any other error → preserve the existing notice behavior.
+  Future<void> _submitDiagnostic() async {
+    final diagnosticProvider = context.read<DiagnosticProvider>();
     final authService = context.read<AuthService>();
     final profile = authService.studentProfile;
     final userId = profile?.uid ?? authService.user?.id ?? '';
 
-    final isComplete = diagnosticProvider.answerCurrentQuestion(answer);
-
-    if (isComplete) {
-      // All questions answered — submit the diagnostic instantly.
-      try {
-        final fallbackProfile =
-            profile ??
-            StudentProfile(
-              uid: userId,
-              lrn: '',
-              displayName: 'Student',
-              role: 'student',
-              gradeLevel: 1,
-              assignedCategory: 'Beginner',
-              currentLevel: 1,
-              startingLevel: 1,
-              stats: const StudentStats(),
-              usedQuestionsHistory: const [],
-              diagnosticCompleted: false,
-              verificationCode: '',
-            );
-
-        final placement = await diagnosticProvider.submitDiagnostic(
-          userId: userId,
-          currentProfile: fallbackProfile,
-        );
-        if (!mounted) return;
-        _showPlacementResult(placement);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Notice: $e')));
+    try {
+      final placement = await diagnosticProvider.submitDiagnostic(
+        userId: userId,
+        currentProfile: profile ?? _placeholderProfile(userId),
+      );
+      if (!mounted) return;
+      _showPlacementResult(placement);
+    } on DiagnosticException catch (ex) {
+      if (!mounted) return;
+      switch (ex.code) {
+        case 'DIAGNOSTIC_ALREADY_COMPLETED':
+          Navigator.of(context).pushReplacementNamed(
+            '/adventure_map',
+            arguments: const {'showWelcomeBack': true},
+          );
+          break;
+        case 'DIAGNOSTIC_STATUS_UNCONFIRMED':
+          _showRetryDialog();
+          break;
+        default:
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Notice: $ex')));
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Notice: $e')));
     }
   }
+
+  /// Retry affordance for an unconfirmed completion status. It intentionally
+  /// does NOT clear the answered diagnostic or write anything — the student's
+  /// answers stay and nothing is saved until a retry succeeds.
+  void _showRetryDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Connection problem'),
+        content: const Text(
+          "We couldn't confirm your saved progress, so nothing was submitted. "
+          'Your answers are still here — please retry.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _submitDiagnostic();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Minimal fallback profile used only when a live profile is momentarily
+  /// unavailable. It is never shown as a placement result: a completed student
+  /// is routed away before this could produce a fabricated placement.
+  StudentProfile _placeholderProfile(String userId) => StudentProfile(
+        uid: userId,
+        lrn: '',
+        displayName: 'Student',
+        role: 'student',
+        gradeLevel: 1,
+        assignedCategory: 'Beginner',
+        currentLevel: 1,
+        startingLevel: 1,
+        stats: const StudentStats(),
+        usedQuestionsHistory: const [],
+        diagnosticCompleted: false,
+        verificationCode: '',
+      );
 
   void _showPlacementResult(PlacementResult placement) {
     final diagnosticProvider = context.read<DiagnosticProvider>();

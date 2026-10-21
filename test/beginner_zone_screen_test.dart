@@ -8,6 +8,7 @@ import 'package:mathalino_student_app/core/services/question_bank_service.dart';
 import 'package:mathalino_student_app/providers/level_progress_provider.dart';
 import 'package:mathalino_student_app/providers/level_provider.dart';
 import 'package:mathalino_student_app/screens/student/beginner_zone_gameplay_screen.dart';
+import 'package:mathalino_student_app/widgets/star_rating.dart';
 
 import 'helpers/bank_fixture.dart';
 
@@ -42,7 +43,7 @@ int _wrongIndex(LevelProvider lp) => _indexOfSlot(
     );
 
 void main() {
-  testWidgets('Level 1: correct answer shows "Correct!" then Level Complete',
+  testWidgets('Level 1: correct answer shows star rating then Level Complete',
       (tester) async {
     final bank = buildBank();
     final levelProvider = LevelProvider(
@@ -74,10 +75,13 @@ void main() {
     await tester.tap(answerButtons.at(_correctIndex(levelProvider)));
     await tester.pumpAndSettle();
 
-    // The combined level complete UI appears directly with "Correct!", score, and "Level 1 Complete!".
-    expect(find.text('Correct!'), findsOneWidget);
+    // The combined level complete UI appears directly with a star rating, "Level 1 Complete!", and score.
+    expect(find.byType(StarRating), findsOneWidget);
     expect(find.text('Level 1 Complete!'), findsOneWidget);
-    expect(find.textContaining('Score: 1/1'), findsOneWidget);
+    // Universal three-chance policy: a first-attempt correct answer on a
+    // non-Challenge level scores 3/3 (labeled "Chance Score" so it is never
+    // confused with raw question accuracy).
+    expect(find.textContaining('Chance Score: 3/3'), findsOneWidget);
     expect(levelProvider.lastCorrect, isTrue);
     // Redundant popup modal is eliminated; answer text is never exposed.
     expect(find.text('Answer Feedback'), findsNothing);
@@ -130,7 +134,7 @@ void main() {
     // Answer correctly -> now the level completes directly with combined UI.
     await tester.tap(find.byType(OutlinedButton).at(_correctIndex(levelProvider)));
     await tester.pumpAndSettle();
-    expect(find.text('Correct!'), findsOneWidget);
+    expect(find.byType(StarRating), findsOneWidget);
     expect(find.text('Level 1 Complete!'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
   });
@@ -160,7 +164,7 @@ void main() {
     // Answer correctly -> directly reaches unified Level Complete card.
     await tester.tap(find.byType(OutlinedButton).at(_correctIndex(levelProvider)));
     await tester.pumpAndSettle();
-    expect(find.text('Correct!'), findsOneWidget);
+    expect(find.byType(StarRating), findsOneWidget);
     expect(find.text('Level 1 Complete!'), findsOneWidget);
 
     // Tap "Continue" â€” should navigate to Level 2's gameplay, NOT the map/landing.
