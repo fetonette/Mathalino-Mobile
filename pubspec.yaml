@@ -64,6 +64,7 @@ flutter:
     - assets/icon/
     - assets/fonts/
     - assets/mascots/
+    - assets/avatar/
 
   fonts:
     - family: Baloo2

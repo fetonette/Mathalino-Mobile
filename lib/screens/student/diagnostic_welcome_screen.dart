@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/services/auth_service.dart';
 import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/diagnostic_provider.dart';
 import 'diagnostic_screen.dart';
@@ -318,38 +317,6 @@ class _DiagnosticWelcomeScreenState extends State<DiagnosticWelcomeScreen>
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // 5. Log out link
-                        SizedBox(
-                          height: 44,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              context
-                                  .read<DiagnosticProvider>()
-                                  .resetDiagnostic();
-                              context.read<AuthService>().logout();
-                            },
-                            icon: const Icon(
-                              Icons.logout_rounded,
-                              size: 20,
-                              color: Color(0xFF971E31),
-                            ),
-                            label: Text(
-                              'Log out',
-                              style: AppTokens.nunito(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF971E31),
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF971E31),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
                             ),
                           ),
                         ),

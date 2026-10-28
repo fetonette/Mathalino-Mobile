@@ -204,6 +204,19 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Resolves the post-login destination using trustworthy, live completion
+  /// evidence for the CURRENT authenticated user only.
+  ///
+  /// Always re-queries Supabase (never trusts the in-memory profile) so a
+  /// freshly signed-in account cannot inherit a previous account's completion
+  /// state. Returns [DiagnosticCompletionStatus.indeterminate] when the data
+  /// could not be determined, so callers avoid forcing a needless RMA retake.
+  Future<DiagnosticCompletionStatus> resolveDiagnosticRouting() async {
+    final uid = _user?.id;
+    if (uid == null) return DiagnosticCompletionStatus.indeterminate;
+    return _db.resolveDiagnosticCompletion(uid);
+  }
+
   /// Backward-compatible login method returning `Future<bool>` for UI compatibility.
   Future<bool> loginWithLRN(String lrn, String password) async {
     try {
@@ -291,6 +304,70 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[AuthService] getUserData error: $e');
       return null;
+    }
+  }
+
+  /// Updates student's coin balance locally and in Supabase,
+  /// immediately notifying listeners for reactive UI updates across all screens.
+  Future<void> updateCoins(int newCoins) async {
+    final uid = _user?.id ?? _studentProfile?.uid;
+    if (_studentProfile != null) {
+      _studentProfile = _studentProfile!.copyWith(
+        stats: _studentProfile!.stats.copyWith(coins: newCoins),
+      );
+      notifyListeners();
+    }
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await _db.updateUserFields(uid, {'coins': newCoins});
+      } catch (e) {
+        debugPrint('[AuthService] updateCoins Supabase sync error: $e');
+      }
+    }
+  }
+
+  /// Strict coin commit used by avatar purchases.
+  ///
+  /// Unlike [updateCoins], this writes to Supabase FIRST and THROWS on any
+  /// failure, and only updates the in-memory balance after the server accepted
+  /// the write. It refuses to run unless [forUid] is the currently
+  /// authenticated student, so one account can never spend for another.
+  Future<void> persistCoinBalance({
+    required String forUid,
+    required int newCoins,
+  }) async {
+    final currentUid = _user?.id;
+    if (currentUid == null || currentUid.isEmpty || currentUid != forUid) {
+      throw StateError('Coin update refused: not the authenticated student.');
+    }
+    if (newCoins < 0) {
+      throw StateError('Coin update refused: balance cannot be negative.');
+    }
+    await _db.updateUserFields(currentUid, {'coins': newCoins});
+    if (_studentProfile != null) {
+      _studentProfile = _studentProfile!.copyWith(
+        stats: _studentProfile!.stats.copyWith(coins: newCoins),
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Updates student's equipped avatarUrl locally and in Supabase,
+  /// immediately notifying listeners for reactive UI updates across all screens.
+  Future<void> updateAvatarUrl(String avatarUrl) async {
+    final uid = _user?.id ?? _studentProfile?.uid;
+    if (_studentProfile != null) {
+      _studentProfile = _studentProfile!.copyWith(
+        avatarUrl: avatarUrl,
+      );
+      notifyListeners();
+    }
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await _db.updateUserFields(uid, {'avatar_url': avatarUrl});
+      } catch (e) {
+        debugPrint('[AuthService] updateAvatarUrl Supabase sync error: $e');
+      }
     }
   }
 

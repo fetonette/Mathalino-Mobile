@@ -1,12 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/student_profile.dart';
 import '../../core/services/game_logic_service.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/level_progress_provider.dart';
 import '../../providers/level_provider.dart';
 import '../../widgets/difficulty_badge.dart';
+import '../../widgets/hearts.dart';
+import '../../widgets/star_rating.dart';
+import '../../widgets/star_row.dart';
 
 /// Zone gameplay screen for Levels 1–60 (all three zones), powered by the new
 /// [LevelProvider] which uses [QuestionBankService] + [GameLogicService].
@@ -39,7 +46,8 @@ class BeginnerZoneGameplayScreen extends StatefulWidget {
       _BeginnerZoneGameplayScreenState();
 }
 
-class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen> {
+class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
+    with WidgetsBindingObserver {
   /// Guards against opening multiple feedback dialogs for the same answer.
   bool _feedbackDialogShowing = false;
 
@@ -50,6 +58,7 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _provider = context.read<LevelProvider>();
     // When an answer is submitted, the provider flags `feedbackPending`; we
     // listen for that transition and surface the result as a modal dialog.
@@ -75,8 +84,30 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _provider?.stopAnsweringTimer();
     _provider?.removeListener(_onLevelProviderChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final provider = _provider;
+    if (provider == null) return;
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        provider.pauseAnsweringTimer();
+        break;
+      case AppLifecycleState.resumed:
+        provider.resumeAnsweringTimer();
+        break;
+      case AppLifecycleState.detached:
+        provider.stopAnsweringTimer();
+        break;
+    }
   }
 
   void _onLevelProviderChanged() {
@@ -87,7 +118,8 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
       // displays the combined feedback ("Correct!", score) directly, eliminating
       // the redundant popup dialog.
       if (provider.phase == PlayerPhase.levelComplete ||
-          provider.phase == PlayerPhase.adventureComplete) {
+          provider.phase == PlayerPhase.adventureComplete ||
+          provider.phase == PlayerPhase.outOfHearts) {
         return;
       }
       _feedbackDialogShowing = true;
@@ -130,6 +162,8 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                 _buildAdventureComplete(context, provider),
               PlayerPhase.needsTeacherSupport =>
                 _buildNeedsTeacherSupport(context, provider),
+              PlayerPhase.outOfHearts =>
+                _buildOutOfHearts(context, provider),
               PlayerPhase.levelFailed => _buildFailed(context, provider),
               PlayerPhase.idle => _buildIdle(context, provider),
               _ => _buildQuestion(context, provider),
@@ -200,14 +234,26 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
         ),
       ),
       actions: [
-        if (!provider.isLoading && provider.error == null)
+        if (!provider.isLoading && provider.error == null) ...[
+          // Hearts only for Preparation / Moderate levels; challenge levels
+          // keep their existing remediation flow and show none.
+          if (!provider.isChallengeLevel)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Center(
+                child: Hearts(
+                  hearts: provider.hearts,
+                  maxHearts: LevelProvider.kMaxHearts,
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: Center(
               child: DifficultyBadge(difficulty: displayDifficulty),
             ),
-          )
-        else
+          ),
+        ] else
           // Keeps the centered title balanced while loading.
           const SizedBox(width: 68),
       ],
@@ -428,6 +474,23 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
                     fontWeight: FontWeight.w600,
                   ),
             ),
+            // Encouragement + age-appropriate hint on the last heart. Never
+            // reveals the correct answer.
+            if (!isCorrect &&
+                !provider.isChallengeLevel &&
+                provider.hearts == 1) ...[
+              const SizedBox(height: 12),
+              Text(
+                'You have one heart left — read the question again, take your '
+                "time, and think it through step by step. You've got this! \uD83D\uDCAA",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFFB45309),
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+              ),
+            ],
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -465,60 +528,101 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
   Widget _buildLevelComplete(BuildContext context, LevelProvider provider) {
     final levelProgressProvider =
         Provider.of<LevelProgressProvider>(context, listen: false);
-    final score = provider.score;
-    final attempted = provider.attemptedTotal;
+    // Non-Challenge levels display the universal three-chance score (X/3);
+    // Challenge levels keep their raw correct-count / attempted denominator.
+    // Presentation uses the exact same values the persistence path receives,
+    // so the on-screen rating always matches the stored
+    // `level_progress.stars` / `student_results.stars` values.
+    final score = provider.completedScore;
+    final maxScore = provider.completedMax;
+    final accuracyPct = StarRating.accuracyForScore(score, maxScore);
+    final stars = StarRating.starsForAccuracy(accuracyPct);
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Container(
           width: double.infinity,
           constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: AppTokens.indigoRing.withValues(alpha: 0.40),
+                blurRadius: 26,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 80),
-              const SizedBox(height: 16),
-              Text(
-                'Correct!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w700,
-                    ),
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: AppTokens.successRing.withValues(alpha: 0.40),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppTokens.successGreen,
+                  size: 62,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 18),
               Text(
                 'Level ${widget.levelNumber} Complete!',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
-                    ),
+                style: AppTokens.baloo2(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppTokens.successGreen,
+                ),
               ),
-              if (attempted > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Score: $score/$attempted',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+              const SizedBox(height: 16),
+              // LATEST-ATTEMPT performance rating celebration (one-time animation).
+              _LevelCompleteCelebrationStars(
+                stars: stars,
+                starSize: 54,
+                gap: 12,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                StarRating.messageForStars(stars),
+                textAlign: TextAlign.center,
+                style: AppTokens.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.bodyText,
+                ),
+              ),
+              if (maxScore > 0) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTokens.iconBadgeFill,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    provider.isChallengeLevel
+                        ? 'Score: $score/$maxScore'
+                        : 'Chance Score: $score/$maxScore',
+                    textAlign: TextAlign.center,
+                    style: AppTokens.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTokens.headingIndigo,
+                    ),
+                  ),
                 ),
               ],
+              const SizedBox(height: 16),
+              _buildRewardStrip(context, provider),
               const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
@@ -580,79 +684,134 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
     );
   }
 
+  /// Compact, child-friendly Coins + XP + saved-star-gain strip for the
+  /// completion screens. Animated and child-friendly. It reflects ONLY genuinely
+  /// persisted values from [LevelProvider.completionOutcome]:
+  ///   * null (save still pending, or a fully unconfirmed/failed save) → a
+  ///     neutral "Saving rewards…" state (never guessed/fictional amounts);
+  ///   * rewardsPersisted → real +Coins / +XP, or a "Practice complete!" note
+  ///     on a +0/+0 replay;
+  ///   * starsPersisted && totalStarsGain > 0 → a "New best! +N stars" chip.
+  /// It never uses `saveSucceeded` as the sole gate for XP/Coins, and never
+  /// confuses the latest-attempt star rating with newly saved best stars.
+  Widget _buildRewardStrip(BuildContext context, LevelProvider provider) {
+    return _AnimatedRewardStrip(outcome: provider.completionOutcome);
+  }
+
   Widget _buildAdventureComplete(
       BuildContext context, LevelProvider provider) {
     final levelProgressProvider =
         Provider.of<LevelProgressProvider>(context, listen: false);
     final score = provider.score;
     final attempted = provider.attemptedTotal;
+    // Presentation-only: same counters the persistence path uses, so the on-screen
+    // rating matches the stored `level_progress.stars` value.
+    final accuracyPct = StarRating.accuracyForScore(score, attempted);
+    final stars = StarRating.starsForAccuracy(accuracyPct);
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Container(
           width: double.infinity,
           constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: AppTokens.indigoRing.withValues(alpha: 0.40),
+                blurRadius: 26,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.emoji_events, color: Colors.amber, size: 96),
-              const SizedBox(height: 16),
-              Text(
-                'Correct!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w700,
-                    ),
+              Container(
+                width: 104,
+                height: 104,
+                decoration: BoxDecoration(
+                  color: AppTokens.accentRing.withValues(alpha: 0.55),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: AppTokens.accentOrange,
+                  size: 68,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 18),
               Text(
                 'Adventure Complete!',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
-                    ),
+                style: AppTokens.baloo2(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppTokens.successGreen,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _LevelCompleteCelebrationStars(
+                stars: stars,
+                starSize: 54,
+                gap: 12,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                StarRating.messageForStars(stars),
+                textAlign: TextAlign.center,
+                style: AppTokens.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.bodyText,
+                ),
               ),
               if (attempted > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Score: $score/$attempted',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTokens.iconBadgeFill,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'Score: $score/$attempted',
+                    textAlign: TextAlign.center,
+                    style: AppTokens.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTokens.headingIndigo,
+                    ),
+                  ),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              _buildRewardStrip(context, provider),
+              const SizedBox(height: 14),
               Text(
-                "You've completed all 60 levels of the Mathalino adventure! 🏆",
+                "You've completed all 60 levels of the Mathalino adventure! \uD83C\uDFC6",
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey.shade700,
-                    ),
+                style: AppTokens.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.secondaryText,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Your mastery of mathematics is complete. Great job!',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                style: AppTokens.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.secondaryText,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -716,6 +875,105 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
               child: const Text('Back to Map'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Supportive, non-punishing screen shown when a Preparation / Moderate
+  /// level runs out of hearts. Offers an in-place "Try Again" (which resets
+  /// hearts/score/attempts and selects a new question WITHOUT writing to the
+  /// database or granting rewards) and "Back to Adventure Map" (which simply
+  /// exits — the level is NOT marked completed).
+  Widget _buildOutOfHearts(BuildContext context, LevelProvider provider) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Hearts(hearts: 0, maxHearts: 3),
+              const SizedBox(height: 16),
+              Image.asset(
+                'assets/mascots/mascot_thumbs_up.png',
+                height: 96,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.favorite_rounded,
+                  size: 72,
+                  color: AppTokens.accentOrange,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Let's Practice Again!",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: AppTokens.successGreen,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "You've used all your hearts on Level ${widget.levelNumber}, "
+                "and that's okay! Take a breath and try again — every mistake "
+                "helps you learn. You can restart this level or head back to "
+                "the Adventure Map.",
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade700,
+                      height: 1.5,
+                    ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  onPressed: provider.restartLevelForHearts,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text(
+                    'Try Again',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.map_rounded),
+                  label: const Text('Back to Adventure Map'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -789,5 +1047,790 @@ class _BeginnerZoneGameplayScreenState extends State<BeginnerZoneGameplayScreen>
         ),
       ),
     );
+  }
+}
+
+/// Compact pill showing a single awarded-reward value (Coins / XP / new-star
+/// gain) inside the static MathALINO Level Complete reward strip.
+// ignore: unused_element
+class _RewardChip extends StatelessWidget {
+  const _RewardChip({
+    required this.icon,
+    required this.iconColor,
+    required this.text,
+    required this.background,
+    required this.foreground,
+    required this.semanticsLabel,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String text;
+  final Color background;
+  final Color foreground;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticsLabel,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: AppTokens.nunito(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Neutral, non-numeric status pill used while a save is still pending or when
+/// there is genuinely nothing to award — never shows fictional rewards.
+class _RewardStatusCard extends StatelessWidget {
+  const _RewardStatusCard({
+    required this.icon,
+    required this.iconColor,
+    required this.message,
+    required this.semanticsLabel,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String message;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticsLabel,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTokens.iconBadgeFill,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTokens.nunito(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTokens.secondaryText,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Animated Reward Collection Strip ───────────────────────────────────────
+
+/// Compact, child-friendly animated Coins + XP + saved-star-gain strip for the
+/// completion screens. It reflects ONLY genuinely persisted values from
+/// [LevelProvider.completionOutcome]:
+///   * null (save still pending, or a fully unconfirmed/failed save) → a
+///     neutral "Saving rewards…" state (never guessed/fictional amounts);
+///   * rewardsPersisted → real +Coins / +XP, or a "Practice complete!" note
+///     on a +0/+0 replay;
+///   * starsPersisted && totalStarsGain > 0 → a "New best! +N stars" chip.
+/// It never uses `saveSucceeded` as the sole gate for XP/Coins, and never
+/// confuses the latest-attempt star rating with newly saved best stars.
+///
+/// Runs a bounded, child-friendly one-time collection animation (~1.3s) once
+/// the confirmed outcome becomes available.
+class _AnimatedRewardStrip extends StatefulWidget {
+  const _AnimatedRewardStrip({required this.outcome});
+
+  final LevelCompletionOutcome? outcome;
+
+  @override
+  State<_AnimatedRewardStrip> createState() => _AnimatedRewardStripState();
+}
+
+class _AnimatedRewardStripState extends State<_AnimatedRewardStrip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _hasStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    );
+
+    if (_hasConfirmedRewards(widget.outcome)) {
+      _startAnimation();
+    }
+  }
+
+  bool _hasConfirmedRewards(LevelCompletionOutcome? outcome) {
+    if (outcome == null) return false;
+    return outcome.rewardsPersisted || outcome.starsPersisted;
+  }
+
+  void _startAnimation() {
+    if (_hasStarted) return;
+    _hasStarted = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+        _controller.value = 1.0;
+      } else {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedRewardStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_hasStarted && _hasConfirmedRewards(widget.outcome)) {
+      _startAnimation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final outcome = widget.outcome;
+
+    if (outcome == null ||
+        (!outcome.rewardsPersisted && !outcome.starsPersisted)) {
+      return const _RewardStatusCard(
+        icon: Icons.hourglass_top_rounded,
+        iconColor: AppTokens.secondaryText,
+        message: 'Saving rewards\u2026',
+        semanticsLabel: 'Saving rewards, please wait',
+      );
+    }
+
+    final chips = <Widget>[];
+
+    // Evaluate rewardsPersisted
+    if (outcome.rewardsPersisted) {
+      final coins = outcome.coinsAwarded;
+      final xp = outcome.xpAwarded;
+
+      if (coins == 0 && xp == 0) {
+        chips.add(const _RewardStatusCard(
+          icon: Icons.favorite_rounded,
+          iconColor: AppTokens.accentOrange,
+          message: 'Practice complete!',
+          semanticsLabel:
+              'Practice complete. No new coins on this replay',
+        ));
+      } else {
+        if (coins > 0) {
+          final coinsAnimation = CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.00, 0.65, curve: Curves.easeOutCubic),
+          );
+          chips.add(_AnimatedCollectChip(
+            icon: Icons.monetization_on_rounded,
+            iconColor: AppTokens.tileYellow,
+            targetValue: coins,
+            labelFormatter: (v) => '+$v Coins',
+            background: AppTokens.tileYellow.withValues(alpha: 0.16),
+            foreground: AppTokens.tileSymbolYellow,
+            semanticsLabel: '$coins coins awarded',
+            animation: coinsAnimation,
+          ));
+        }
+
+
+      }
+    }
+
+    // Evaluate starsPersisted
+    if (outcome.starsPersisted && outcome.totalStarsGain > 0) {
+      final gain = outcome.totalStarsGain;
+      final starsAnimation = CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.30, 0.95, curve: Curves.easeOutCubic),
+      );
+      chips.add(_AnimatedCollectChip(
+        icon: Icons.star_rounded,
+        iconColor: AppTokens.accentOrange,
+        targetValue: gain,
+        labelFormatter: (v) => 'New best! +$v star${v == 1 ? '' : 's'}',
+        background: AppTokens.accentRing.withValues(alpha: 0.50),
+        foreground: AppTokens.orangeText,
+        semanticsLabel: '$gain new stars saved',
+        animation: starsAnimation,
+      ));
+    }
+
+    if (chips.isEmpty) {
+      return const _RewardStatusCard(
+        icon: Icons.celebration_rounded,
+        iconColor: AppTokens.successGreen,
+        message: 'Level complete!',
+        semanticsLabel: 'Level complete',
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
+      children: chips,
+    );
+  }
+}
+
+/// A single animated reward counter chip with playful particle flight toward the
+/// chip icon, a gentle scale/bounce pop, and smooth numerical count-up.
+class _AnimatedCollectChip extends StatelessWidget {
+  const _AnimatedCollectChip({
+    required this.icon,
+    required this.iconColor,
+    required this.targetValue,
+    required this.labelFormatter,
+    required this.background,
+    required this.foreground,
+    required this.semanticsLabel,
+    required this.animation,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final int targetValue;
+  final String Function(int value) labelFormatter;
+  final Color background;
+  final Color foreground;
+  final String semanticsLabel;
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final progress = animation.value;
+
+        // Counter roll: 0 -> targetValue
+        final currentValue =
+            (progress * targetValue).round().clamp(0, targetValue);
+
+        // Scale pop: subtle bounce overshoot (0.75 -> 1.06 -> 1.00)
+        final double scale;
+        if (progress < 0.7) {
+          scale = 0.75 + (0.31 * (progress / 0.7));
+        } else {
+          scale = 1.06 - (0.06 * ((progress - 0.7) / 0.3));
+        }
+
+        // Slide up into place
+        final slideY = 10.0 * (1.0 - progress);
+
+        // Opacity fade in
+        final opacity = progress.clamp(0.0, 1.0);
+
+        // Floating particle icon traveling toward the chip icon
+        final particleProgress = (progress / 0.75).clamp(0.0, 1.0);
+        final particleOpacity =
+            (1.0 - (particleProgress - 0.5).abs() * 2).clamp(0.0, 1.0);
+        final particleSlideY = -18.0 * (1.0 - particleProgress);
+
+        return Semantics(
+          label: semanticsLabel,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Main reward chip
+              Opacity(
+                opacity: opacity,
+                child: Transform.translate(
+                  offset: Offset(0, slideY),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: background,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: progress > 0.25 && progress < 0.95
+                            ? [
+                                BoxShadow(
+                                  color: iconColor.withValues(alpha: 0.25),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, color: iconColor, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            labelFormatter(currentValue),
+                            style: AppTokens.nunito(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: foreground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Small playful particle icon flying toward the chip icon
+              if (particleOpacity > 0.01 && progress < 0.9)
+                Positioned(
+                  left: 14,
+                  top: particleSlideY,
+                  child: Opacity(
+                    opacity: particleOpacity,
+                    child: Icon(
+                      icon,
+                      color: iconColor,
+                      size: 14,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Level Complete Star Celebration ────────────────────────────────────────
+
+/// Playful, one-time star entrance with an elastic pop sequence and a brief
+/// 3-star confetti/sparkle burst for the Level Complete & Adventure Complete screens.
+class _LevelCompleteCelebrationStars extends StatefulWidget {
+  final int stars;
+  final double starSize;
+  final double gap;
+
+  const _LevelCompleteCelebrationStars({
+    required this.stars,
+    this.starSize = 54.0,
+    this.gap = 12.0,
+  });
+
+  @override
+  State<_LevelCompleteCelebrationStars> createState() =>
+      _LevelCompleteCelebrationStarsState();
+}
+
+class _LevelCompleteCelebrationStarsState
+    extends State<_LevelCompleteCelebrationStars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      final reduceMotion =
+          MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+      if (reduceMotion) {
+        _controller.value = 1.0;
+      } else {
+        _controller.forward();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _LevelCompleteCelebrationStars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Bounded one-time celebration: prevent restart when LevelProvider notifies on save.
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Elastic scale for star [index] with staggered 180ms delay.
+  double _starScale(int index, double t, bool reduceMotion) {
+    if (reduceMotion) return 1.0;
+    final startT = (index * 180) / 2000.0;
+    final endT = (index * 180 + 450) / 2000.0;
+
+    if (t < startT) return 0.0;
+    if (t >= endT) return 1.0;
+
+    final progress = (t - startT) / (endT - startT);
+    return Curves.elasticOut.transform(progress);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final filledStars = widget.stars.clamp(0, 3);
+
+    return Semantics(
+      label: '$filledStars of 3 stars',
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // Invisible StarRating maintains compatibility with find.byType(StarRating) and semantics
+          Offstage(
+            offstage: true,
+            child: StarRating(
+              stars: widget.stars,
+              starSize: widget.starSize,
+              gap: widget.gap,
+              animate: false,
+            ),
+          ),
+
+          // 3-Star Confetti / Sparkle burst celebration (duration ~1.5s, bounded inside card)
+          if (filledStars == 3 && !reduceMotion)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _ConfettiCelebrationPainter(
+                      progress: _controller.value,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Star slots: empty outlines always visible; filled stars pop in sequentially
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final t = _controller.value;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 0; i < 3; i++) ...[
+                    if (i > 0) SizedBox(width: widget.gap),
+                    SizedBox(
+                      width: widget.starSize,
+                      height: widget.starSize,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Base empty outline slot (always visible from frame 0)
+                          Icon(
+                            Icons.star_outline_rounded,
+                            size: widget.starSize,
+                            color: AppTokens.accentRing,
+                          ),
+                          // Popping filled star with gentle elastic bounce
+                          if (i < filledStars)
+                            Transform.scale(
+                              scale: _starScale(i, t, reduceMotion),
+                              child: Icon(
+                                Icons.star_rounded,
+                                size: widget.starSize,
+                                color: AppTokens.accentOrange,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParticleData {
+  final double angle;
+  final double speed;
+  final double size;
+  final Color color;
+  final bool isSparkle;
+  final double rotationMultiplier;
+
+  const _ParticleData({
+    required this.angle,
+    required this.speed,
+    required this.size,
+    required this.color,
+    required this.isSparkle,
+    required this.rotationMultiplier,
+  });
+}
+
+class _ConfettiCelebrationPainter extends CustomPainter {
+  final double progress;
+
+  _ConfettiCelebrationPainter({required this.progress});
+
+  static const List<_ParticleData> _particles = [
+    _ParticleData(
+      angle: -1.4,
+      speed: 70,
+      size: 5,
+      color: AppTokens.tileYellow,
+      isSparkle: true,
+      rotationMultiplier: 2.0,
+    ),
+    _ParticleData(
+      angle: -1.1,
+      speed: 85,
+      size: 6,
+      color: AppTokens.accentOrange,
+      isSparkle: false,
+      rotationMultiplier: 3.5,
+    ),
+    _ParticleData(
+      angle: -0.8,
+      speed: 60,
+      size: 4,
+      color: AppTokens.tileMint,
+      isSparkle: false,
+      rotationMultiplier: -2.5,
+    ),
+    _ParticleData(
+      angle: -0.5,
+      speed: 90,
+      size: 5,
+      color: AppTokens.tileSky,
+      isSparkle: true,
+      rotationMultiplier: 4.0,
+    ),
+    _ParticleData(
+      angle: -0.2,
+      speed: 75,
+      size: 6,
+      color: AppTokens.tilePeriwinkle,
+      isSparkle: false,
+      rotationMultiplier: -3.0,
+    ),
+    _ParticleData(
+      angle: 0.2,
+      speed: 65,
+      size: 4,
+      color: AppTokens.primaryIndigo,
+      isSparkle: false,
+      rotationMultiplier: 2.5,
+    ),
+    _ParticleData(
+      angle: 0.5,
+      speed: 85,
+      size: 5,
+      color: AppTokens.tileYellow,
+      isSparkle: true,
+      rotationMultiplier: -4.0,
+    ),
+    _ParticleData(
+      angle: 0.8,
+      speed: 70,
+      size: 6,
+      color: AppTokens.accentOrange,
+      isSparkle: false,
+      rotationMultiplier: 3.0,
+    ),
+    _ParticleData(
+      angle: 1.1,
+      speed: 60,
+      size: 4,
+      color: AppTokens.tileMint,
+      isSparkle: false,
+      rotationMultiplier: -2.0,
+    ),
+    _ParticleData(
+      angle: 1.4,
+      speed: 80,
+      size: 5,
+      color: AppTokens.tileSky,
+      isSparkle: true,
+      rotationMultiplier: 3.5,
+    ),
+    _ParticleData(
+      angle: 1.7,
+      speed: 65,
+      size: 6,
+      color: AppTokens.tilePeriwinkle,
+      isSparkle: false,
+      rotationMultiplier: -3.5,
+    ),
+    _ParticleData(
+      angle: 2.0,
+      speed: 90,
+      size: 5,
+      color: AppTokens.tileYellow,
+      isSparkle: true,
+      rotationMultiplier: 4.0,
+    ),
+    _ParticleData(
+      angle: 2.3,
+      speed: 60,
+      size: 4,
+      color: AppTokens.accentOrange,
+      isSparkle: false,
+      rotationMultiplier: -2.5,
+    ),
+    _ParticleData(
+      angle: 2.6,
+      speed: 75,
+      size: 6,
+      color: AppTokens.tileMint,
+      isSparkle: false,
+      rotationMultiplier: 3.0,
+    ),
+    _ParticleData(
+      angle: 2.9,
+      speed: 70,
+      size: 5,
+      color: AppTokens.tileSky,
+      isSparkle: true,
+      rotationMultiplier: -4.0,
+    ),
+    _ParticleData(
+      angle: 3.2,
+      speed: 85,
+      size: 6,
+      color: AppTokens.tilePeriwinkle,
+      isSparkle: false,
+      rotationMultiplier: 2.0,
+    ),
+    _ParticleData(
+      angle: 3.5,
+      speed: 60,
+      size: 4,
+      color: AppTokens.primaryIndigo,
+      isSparkle: false,
+      rotationMultiplier: -3.0,
+    ),
+    _ParticleData(
+      angle: 3.8,
+      speed: 80,
+      size: 5,
+      color: AppTokens.tileYellow,
+      isSparkle: true,
+      rotationMultiplier: 3.5,
+    ),
+    _ParticleData(
+      angle: 4.1,
+      speed: 65,
+      size: 6,
+      color: AppTokens.accentOrange,
+      isSparkle: false,
+      rotationMultiplier: -2.0,
+    ),
+    _ParticleData(
+      angle: 4.4,
+      speed: 85,
+      size: 5,
+      color: AppTokens.tileMint,
+      isSparkle: true,
+      rotationMultiplier: 4.5,
+    ),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress < 0.25 || progress >= 1.0) return;
+
+    final p = ((progress - 0.25) / 0.75).clamp(0.0, 1.0);
+    final easedP = Curves.easeOutCubic.transform(p);
+    final alpha = p < 0.55 ? 1.0 : (1.0 - (p - 0.55) / 0.45).clamp(0.0, 1.0);
+
+    if (alpha <= 0.001) return;
+
+    final center = Offset(size.width / 2, size.height / 2);
+
+    for (final particle in _particles) {
+      final dist = easedP * particle.speed;
+      final x = center.dx + math.cos(particle.angle) * dist;
+      final y =
+          center.dy + math.sin(particle.angle) * dist * 0.75 + (p * p * 22.0);
+
+      canvas.save();
+      canvas.translate(x, y);
+
+      final paint = Paint()
+        ..color = particle.color.withValues(alpha: particle.color.a * alpha)
+        ..style = PaintingStyle.fill;
+
+      if (particle.isSparkle) {
+        final sparklePath = StarPainter.buildSparklePath(
+          Offset.zero,
+          particle.size * (1.0 - 0.3 * p),
+        );
+        canvas.drawPath(sparklePath, paint);
+      } else {
+        canvas.rotate(p * particle.rotationMultiplier * math.pi);
+        final rect = Rect.fromCenter(
+          center: Offset.zero,
+          width: particle.size * 1.3,
+          height: particle.size * 0.75,
+        );
+        final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(1.5));
+        canvas.drawRRect(rrect, paint);
+      }
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiCelebrationPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

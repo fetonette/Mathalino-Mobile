@@ -158,18 +158,30 @@ class DailyChallengeService {
       throw DailyChallengeAlreadyCompletedException(date);
     }
 
-    // Fetch current user stats for streak resolution
+    // Fetch current user stats for reward baselines.
     final userProfile = await _db.fetchStudentProfile(userId);
     final currentXp = userProfile?.stats.totalXp ?? 0;
     final currentCoins = userProfile?.stats.coins ?? 0;
     final currentStreak = userProfile?.stats.streakDays ?? 0;
-    final lastActiveDate = userProfile?.stats.lastActiveDate;
 
-    // Resolve streak
-    final newStreak = _rewardsService.resolveStreak(
-      currentStreak: currentStreak,
-      lastActiveDate: lastActiveDate,
+    // Resolve the Daily Streak from the student's canonical learning activity history.
+    // Under the approved Batch 9B rules, any qualifying learning activity
+    // (passed Adventure Map level or Daily Challenge) maintains and advances the streak.
+    final anchor = await _db.fetchLastDailyChallengeDate(
+      userId: userId,
+      todayKey: dateKey,
     );
+    final int newStreak;
+    if (anchor.source == DailyChallengeAnchorSource.unreadable) {
+      newStreak = currentStreak == 0 ? 1 : currentStreak;
+    } else {
+      final lastActiveDate = userProfile?.stats.lastActiveDate ?? anchor.date;
+      newStreak = _rewardsService.resolveStreak(
+        currentStreak: currentStreak,
+        lastActiveDate: lastActiveDate,
+        now: date,
+      );
+    }
 
     // Compute rewards
     final xpAwarded = _rewardsService.calculateXp(
@@ -211,7 +223,6 @@ class DailyChallengeService {
         'total_xp': currentXp + xpAwarded,
         'coins': currentCoins + coinsAwarded,
         'streak_days': newStreak,
-        'last_active_date': nowIso,
       },
       resultData: {
         'student_id': userId,

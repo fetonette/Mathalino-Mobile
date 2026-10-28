@@ -19,6 +19,7 @@ import '../../widgets/home/level_map.dart';
 import '../../widgets/level_node.dart';
 import 'remediation_screen.dart';
 import 'adventure_sections.dart';
+import 'avatar_shop_screen.dart';
 import 'beginner_zone_gameplay_screen.dart';
 
 /// Adventure Map Screen for Mathalino Student App
@@ -350,7 +351,10 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     if (layout.entries.isEmpty) return;
 
     final h = _viewportHeight;
-    final localY = math.min(math.max(0.40 * h, 175.0), math.max(h - 125.0, 0.0));
+    // Keep target level center positioned comfortably in upper-middle of viewport,
+    // ensuring the bottom of the node (circle + stars + number) never drops into the Continue button.
+    final localY =
+        math.min(math.max(0.40 * h, 175.0), math.max(h - 180.0, 0.0));
     final index = (targetLevel - 1).clamp(0, layout.entries.length - 1);
     final offset = layout
         .offsetFor(index, localY)
@@ -402,7 +406,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     _navigateToGameplay(levelNumber);
   }
 
-  void _navigateToGameplay(int levelNumber) {
+  Future<void> _navigateToGameplay(int levelNumber) async {
     final authService = context.read<AuthService>();
     final profile = authService.studentProfile;
     final remediationProvider = context.read<RemediationProvider>();
@@ -410,7 +414,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     // If a remediation session is active, route to the remediation screen
     // instead of normal gameplay.
     if (remediationProvider.isRemediationActive) {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => RemediationScreen(
@@ -437,6 +441,9 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
           settings: RouteSettings(name: '/remediation/$levelNumber'),
         ),
       );
+      // Returning from remediation may follow a completion; refresh Total Stars
+      // from level_progress (self-contained; preserves last value on error).
+      if (mounted) await context.read<LevelProgressProvider>().refreshTotalStars();
       return;
     }
 
@@ -444,7 +451,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     // GameLogicService + QuestionBankService). Zone 2 (21–40) has no
     // remediation gates; Zone 3 (41–60) restores gates at 45/50/55/60 and
     // Level 60 surfaces the "Adventure Complete" state.
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BeginnerZoneGameplayScreen(
@@ -468,6 +475,9 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
         settings: RouteSettings(name: '/beginner-zone/$levelNumber'),
       ),
     );
+    // Returning from gameplay may follow a persisted level completion; refresh
+    // Total Stars from genuine level_progress rows (never reward logic).
+    if (mounted) await context.read<LevelProgressProvider>().refreshTotalStars();
   }
 
   @override
@@ -480,6 +490,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     final int totalXp = profile?.stats.totalXp ?? 0;
     final int coins = profile?.stats.coins ?? 0;
     final int currentLevel = levelProvider.currentLevel;
+    final int totalStars = levelProvider.totalStars;
 
     if (_selectedSection == 0) {
       return _buildHome(
@@ -487,6 +498,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
         name: displayName,
         coins: coins,
         xp: totalXp,
+        stars: totalStars,
       );
     }
 
@@ -504,21 +516,27 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
           bottom: false,
           child: Column(
             children: [
-              if (_selectedSection == 1 || _selectedSection == 2)
+              if (_selectedSection == 1 || _selectedSection == 3)
                 HomeHeader(
                   name: displayName,
                   level: currentLevel,
                   coins: coins,
                   xp: totalXp,
+                  stars: totalStars,
+                  onAvatarTap: () => _selectSection(2),
                 ),
               Expanded(
                 child: _selectedSection == 1
                     ? const AdventureLearnView()
                     : _selectedSection == 2
-                        ? AdventureProgressView(
-                            onNavigateToLearn: () => _selectSection(1),
-                          )
-                        : const AdventureProfileView(),
+                        ? const AvatarShopScreen(showBackButton: false)
+                        : _selectedSection == 3
+                            ? AdventureProgressView(
+                                onNavigateToLearn: () => _selectSection(1),
+                              )
+                            : AdventureProfileView(
+                                onNavigateToShop: () => _selectSection(2),
+                              ),
               ),
             ],
           ),
@@ -546,6 +564,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
     required String name,
     required int coins,
     required int xp,
+    required int stars,
   }) {
     final currentLevel = levelProvider.currentLevel;
 
@@ -572,6 +591,8 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
                     level: currentLevel,
                     coins: coins,
                     xp: xp,
+                    stars: stars,
+                    onAvatarTap: () => _selectSection(2),
                   ),
                   ValueListenableBuilder<int>(
                     valueListenable: _zoneInView,
@@ -644,11 +665,19 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
           });
         }
 
+        // Calculate bottom scroll clearance so all level nodes, earned stars,
+        // and level numbers can appear comfortably above the fixed Continue button.
+        // Continue button occupies: 56px (height) + 4px (bottom) + 6px (3D shadow) = 66px.
+        final bottomSafeArea = constraints.maxWidth >= 700
+            ? MediaQuery.paddingOf(context).bottom
+            : 0.0;
+        const continueButtonClearance = 56.0 + 4.0 + 6.0 + 20.0;
+        final extraBottom = continueButtonClearance + bottomSafeArea;
+
         return LevelMapView(
           controller: _scrollController,
           layout: _layout!,
-          // Space for the floating Continue button (56 + shadow + margins).
-          extraBottom: 96,
+          extraBottom: extraBottom,
           onScrollNotification: _onMapScroll,
           nodeBuilder: (entry) {
             final level = entry.level;
@@ -658,6 +687,7 @@ class _AdventureMapScreenState extends State<AdventureMapScreen>
               isHard: LevelProgressProvider.isHardLevel(level),
               isBoss: LevelProgressProvider.isBossLevel(level),
               isCurrent: level == provider.currentLevel,
+              stars: provider.starsForLevel(level),
               onTap: () => _startLevel(level),
             );
           },

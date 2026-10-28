@@ -50,6 +50,36 @@ class AppTokens {
   static const Color navBorder = Color(0xFFEAE6F5);
   static const Color navActivePill = Color(0xFFE0E7FF);
 
+  // --- Star Rating & Badges ---
+  static const Color starGoldLight = Color(0xFFFFD54A);
+  static const Color starGoldDark = Color(0xFFFFA000);
+  static const Color starGoldOutline = Color(0xFFC77700);
+  static const Color starGlossHighlight = Color(0x99FFFFFF); // White at 60% opacity
+  static const Color starEmptyFill = Color(0xFFE6DCCB);
+  static const Color starEmptyOutline = Color(0xFFCDBFA8);
+  static const Color starEmptyInnerShadow = Color(0x338D7B68); // Faint inner shadow
+  static const Color starDropShadow = Color(0x33000000); // 20% black
+  static const Color starGlow = Color(0x40FFB400); // Radial glow #FFB400 at 25% opacity
+  static const Color starSparkle = Color(0xFFFFF7C2);
+
+  // Star Layout & Geometry Tokens
+  static const double starSize = 28.0;
+  static const double starOutlineWidth = 2.0;
+  static const double starCornerRadiusFactor = 0.15; // 15% of star size
+  static const double starMiddleLift = 6.0; // Middle star is 6px higher
+  static const double starMiddleScale = 1.10; // Middle star is ~10% larger
+  static const double starTiltAngleDeg = 10.0; // Side stars tilt -10 and +10 degrees
+  static const double starTiltAngleRad = 10.0 * 0.017453292519943295; // 10 deg in rad
+  static const double starOverlapGap = -2.0; // -2px gap (slight overlap)
+  static const double starVerticalGap = 4.0; // 4px vertical gap
+  static const double starRowWidth = 84.0;
+  static const double starRowHeight = 38.0;
+
+  // Star Animation Timings
+  static const Duration starStaggerDelay = Duration(milliseconds: 120);
+  static const Duration starPopDuration = Duration(milliseconds: 450);
+  static const Duration starSparkleDuration = Duration(milliseconds: 400);
+
   // --- Font Families ---
   static const String fontBaloo2 = 'Baloo2';
   static const String fontNunito = 'Nunito';

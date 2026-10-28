@@ -308,11 +308,7 @@ class _CompletedView extends StatelessWidget {
                     label: 'Points',
                     value: '${result!.pointsEarned}/${result!.maxPoints}',
                   ),
-                  _ResultRow(
-                    icon: Icons.bolt,
-                    label: 'XP',
-                    value: '+${result!.xpAwarded}',
-                  ),
+
                   _ResultRow(
                     icon: Icons.monetization_on,
                     label: 'Coins',

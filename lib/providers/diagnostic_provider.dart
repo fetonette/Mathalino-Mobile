@@ -174,9 +174,16 @@ class DiagnosticProvider extends ChangeNotifier {
   ///    Advanced) — atomically writes `assignedTier`, `diagnosticFlags`, and a
   ///    `/student_results` record via a Firestore [WriteBatch].
   ///
-  /// [currentProfile.diagnosticCompleted] controls the idempotency guard on
-  /// pipeline 2: if already `true`, pipeline 2 is skipped unless the caller
-  /// sets [forceReassessment] to `true`.
+  /// Safe submission authorization (A3): unless [forceReassessment] is `true`,
+  /// a normal submission is permitted only after [SupabaseService.resolveDiagnosticCompletion]
+  /// *positively confirms* from durable, authenticated-student-scoped evidence
+  /// that the diagnostic has NOT already been completed. A write is never
+  /// authorized from the cached [currentProfile] (which may be a placeholder):
+  ///  * `completed`     → writes nothing, throws a [DiagnosticException] coded
+  ///    `DIAGNOSTIC_ALREADY_COMPLETED` (UI navigates to Adventure Map).
+  ///  * `indeterminate` → writes nothing, throws coded
+  ///    `DIAGNOSTIC_STATUS_UNCONFIRMED` (UI offers a safe retry).
+  ///  * `none`          → proceeds with the legitimate first-time submission.
   Future<PlacementResult> submitDiagnostic({
     required String userId,
     required StudentProfile currentProfile,
@@ -204,6 +211,42 @@ class DiagnosticProvider extends ChangeNotifier {
     _setSubmitting(true);
     _clearError();
     try {
+      // Safe submission authorization — a normal (non-forced) submission is
+      // permitted only when durable, authenticated-student-scoped evidence
+      // positively confirms the student has NOT already completed the
+      // diagnostic. We never write based on the cached [currentProfile] (it may
+      // be a placeholder). Outcomes:
+      //  * completed     → write nothing, throw DIAGNOSTIC_ALREADY_COMPLETED.
+      //  * indeterminate → write nothing, throw DIAGNOSTIC_STATUS_UNCONFIRMED so
+      //                    the UI retries without overwriting saved progress.
+      //  * none          → proceed with the legitimate first-time submission.
+      if (!forceReassessment) {
+        final existing = await _db.resolveDiagnosticCompletion(userId);
+        switch (existing) {
+          case DiagnosticCompletionStatus.completed:
+            debugPrint(
+              '[DiagnosticProvider] submitDiagnostic blocked: diagnostic already '
+              'completed for user $userId (duplicate-submission guard).',
+            );
+            throw DiagnosticException(
+              'Diagnostic already completed. Your saved placement is preserved.',
+              code: 'DIAGNOSTIC_ALREADY_COMPLETED',
+            );
+          case DiagnosticCompletionStatus.indeterminate:
+            debugPrint(
+              '[DiagnosticProvider] submitDiagnostic deferred: completion status '
+              'unconfirmed for user $userId (retry required).',
+            );
+            throw DiagnosticException(
+              'Could not confirm your saved progress. Please retry — your '
+              'answers are safe and nothing was saved.',
+              code: 'DIAGNOSTIC_STATUS_UNCONFIRMED',
+            );
+          case DiagnosticCompletionStatus.none:
+            break;
+        }
+      }
+
       // 1. Score each answer and apply the diagnostic placement engine
       //    (GameLogicService.scoreDiagnostic: Beginner/Intermediate/Advanced/
       //    Mastery with starting levels 1 / 21 / 41 / 41).

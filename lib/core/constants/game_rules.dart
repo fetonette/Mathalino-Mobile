@@ -147,11 +147,9 @@ const int kSpeedBonusThresholdSeconds = 10;
 /// Bonus XP awarded when every question is answered correctly (perfect run).
 const int kXpPerfectBonus = 50;
 
-/// Coins awarded for completing a level.
-const int kCoinsPerLevel = 50;
-
-/// Additional coins awarded for a perfect run.
-const int kCoinsPerfectBonus = 25;
+/// Maximum coins awarded for completing a level (3 stars = 15 coins).
+/// Conversion formula: coins = stars * 5 (3 stars = 15, 2 stars = 10, 1 star = 5, 0 stars = 0).
+const int kCoinsPerLevel = 15;
 
 /// Streak multiplier percentage added per streak day (e.g. 0.10 = +10% per day).
 const double kStreakXpMultiplierPerDay = 0.10;

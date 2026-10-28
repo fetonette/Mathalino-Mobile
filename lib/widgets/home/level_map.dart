@@ -18,7 +18,7 @@ class LevelMapLayout {
   static const List<double> xFractions = [0.20, 0.50, 0.76, 0.40];
 
   static const double _gap = 22;
-  static const double _completedLabelExtra = 14;
+  static const double _completedLabelExtra = 56;
   static const double _currentTagExtra = 14;
   static const double topPadding = 16;
   static const double bottomPadding = 24;
@@ -61,8 +61,25 @@ class LevelMapLayout {
       );
       centers.add(Offset(x, y));
     }
-    final last = entries.isEmpty ? 0.0 : entries.last.kind.diameter / 2;
-    final h = (centers.isEmpty ? 0 : centers.last.dy) + last + bottomPadding + 24;
+    double lastBottomExtent = 0.0;
+    if (entries.isNotEmpty) {
+      final lastKind = entries.last.kind;
+      final r = lastKind.diameter / 2;
+      if (lastKind == LevelNodeKind.completed) {
+        lastBottomExtent = r +
+            AppTokens.starVerticalGap +
+            AppTokens.starRowHeight +
+            AppTokens.starVerticalGap +
+            18.0;
+      } else if (lastKind == LevelNodeKind.current) {
+        lastBottomExtent = r + 20.0;
+      } else {
+        lastBottomExtent = r + 12.0;
+      }
+    }
+    final h = (centers.isEmpty ? 0 : centers.last.dy) +
+        lastBottomExtent +
+        bottomPadding;
     return LevelMapLayout._(width, entries, centers, h);
   }
 

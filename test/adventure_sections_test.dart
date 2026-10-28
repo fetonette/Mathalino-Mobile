@@ -57,6 +57,9 @@ class MockLevelProgressProvider extends ChangeNotifier
   StudentProfile? get studentProfile => null;
 
   @override
+  int get totalStars => 45;
+
+  @override
   LevelState getLevelState(int level) {
     if (level < 30) return LevelState.completed;
     if (level == 30) return LevelState.unlocked;
@@ -68,29 +71,68 @@ class MockLevelProgressProvider extends ChangeNotifier
 }
 
 class MockLearnProvider extends ChangeNotifier implements LearnProvider {
-  @override
-  bool get isLoading => false;
+  List<TeacherPublishedModule> _modules = const [];
+  bool _loading = false;
+  String? _error;
+
+  void setPublishedModules(List<TeacherPublishedModule> modules) {
+    _modules = modules;
+    notifyListeners();
+  }
+
+  void setError(String? error) {
+    _error = error;
+    notifyListeners();
+  }
+
+  void setLoading(bool loading) {
+    _loading = loading;
+    notifyListeners();
+  }
 
   @override
-  String? get errorMessage => null;
+  List<TeacherPublishedModule> get publishedModules => _modules;
 
   @override
-  GradeLearnContent? get currentGradeContent => null;
+  bool get hasPublishedModules => _modules.isNotEmpty;
+
+  @override
+  bool get isLoading => _loading;
+
+  @override
+  String? get errorMessage => _error;
+
+  @override
+  bool get isInitialized => true;
+
+  @override
+  Future<void> loadPublishedModules({bool force = false}) async {}
+
+  @override
+  Future<void> refreshPublishedModules() async {}
 
   @override
   Future<void> loadForStudent(StudentProfile? profile) async {}
 
   @override
+  GradeLearnContent? get currentGradeContent => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget buildTestableWidget(Widget child, {Size size = const Size(390, 844)}) {
+Widget buildTestableWidget(
+  Widget child, {
+  Size size = const Size(390, 844),
+  MockLearnProvider? learnProvider,
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthService>(create: (_) => MockAuthService()),
       ChangeNotifierProvider<LevelProgressProvider>(
           create: (_) => MockLevelProgressProvider()),
-      ChangeNotifierProvider<LearnProvider>(create: (_) => MockLearnProvider()),
+      ChangeNotifierProvider<LearnProvider>(
+          create: (_) => learnProvider ?? MockLearnProvider()),
     ],
     child: MaterialApp(
       home: MediaQuery(
@@ -104,10 +146,14 @@ Widget buildTestableWidget(Widget child, {Size size = const Size(390, 844)}) {
 }
 
 void main() {
-  group('Learn Screen Tests', () {
-    testWidgets('Renders title, subtitle, mascot, and all module cards',
+  group('Learn Screen Tests (Phase 7)', () {
+    testWidgets('Renders exact empty state when teacher hasn\'t added lessons yet',
         (tester) async {
-      await tester.pumpWidget(buildTestableWidget(const AdventureLearnView()));
+      final mockLearn = MockLearnProvider();
+      await tester.pumpWidget(buildTestableWidget(
+        const AdventureLearnView(),
+        learnProvider: mockLearn,
+      ));
       await tester.pumpAndSettle();
 
       expect(find.text('Learn'), findsOneWidget);
@@ -115,11 +161,64 @@ void main() {
         find.text('Choose a module and keep building your math skills.'),
         findsOneWidget,
       );
-      expect(find.text('Number Sense'), findsOneWidget);
-      expect(find.text('Operations'), findsOneWidget);
-      expect(find.text('Fractions'), findsOneWidget);
-      expect(find.text('Geometry'), findsOneWidget);
-      expect(find.text('Coming Soon'), findsOneWidget);
+      // Section 7: Exact required empty state text
+      expect(
+        find.text("Your teacher hasn't added practice lessons yet."),
+        findsOneWidget,
+      );
+      expect(find.text('Check for Updates'), findsOneWidget);
+    });
+
+    testWidgets('Renders dynamic teacher-published modules and lesson counts',
+        (tester) async {
+      final mockLearn = MockLearnProvider();
+      mockLearn.setPublishedModules([
+        const TeacherPublishedModule(
+          id: 'mod-1',
+          teacherId: 'teacher-1',
+          title: 'Multiplication Mastery Module',
+          description: 'Practice multiplication with fun word problems.',
+          gradeLevel: 'Grade 3',
+          publishedLessonCount: 3,
+        ),
+        const TeacherPublishedModule(
+          id: 'mod-2',
+          teacherId: 'teacher-1',
+          title: 'Fractions & Halves',
+          description: 'Discover visual fraction models.',
+          gradeLevel: 'Grade 3',
+          publishedLessonCount: 1,
+        ),
+      ]);
+
+      await tester.pumpWidget(buildTestableWidget(
+        const AdventureLearnView(),
+        learnProvider: mockLearn,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Multiplication Mastery Module'), findsOneWidget);
+      expect(find.text('3 Practice Lessons'), findsOneWidget);
+      expect(find.text('Fractions & Halves'), findsOneWidget);
+      expect(find.text('1 Practice Lesson'), findsOneWidget);
+    });
+
+    testWidgets('Renders recoverable error state with retry button',
+        (tester) async {
+      final mockLearn = MockLearnProvider();
+      mockLearn.setError('Network connection failed. Please check your internet and retry.');
+
+      await tester.pumpWidget(buildTestableWidget(
+        const AdventureLearnView(),
+        learnProvider: mockLearn,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Network connection failed. Please check your internet and retry.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retry'), findsOneWidget);
     });
 
     testWidgets('Renders on 360px width without overflow', (tester) async {
@@ -197,7 +296,7 @@ void main() {
       expect(find.text('Grade 4 · Cute'), findsOneWidget);
       expect(find.text('Current Level: 30'), findsOneWidget);
       expect(find.text('120 Coins'), findsOneWidget);
-      expect(find.text('340 XP'), findsOneWidget);
+      expect(find.text('45 Stars'), findsOneWidget);
 
       // My details card
       expect(find.text('My details'), findsOneWidget);

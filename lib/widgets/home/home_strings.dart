@@ -45,6 +45,8 @@ class HomeStrings {
   static const String avatarLabel = 'Student avatar';
   static String coinsLabel(int coins) => '$coins coins';
   static String xpLabel(int xp) => '$xp experience points';
+  static String stars(int stars) => '$stars';
+  static String starsLabel(int stars) => '$stars total stars';
 }
 
 /// Static presentation data for the three zones (levels 1-60).

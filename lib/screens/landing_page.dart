@@ -21,7 +21,7 @@ class _LandingPageState extends State<LandingPage> {
   final List<Map<String, dynamic>> _features = const [
     {
       'icon': Icons.star_rounded,
-      'title': 'Earn XP & Coins',
+      'title': 'Earn Stars & Coins',
       'description': 'Collect rewards as you solve math problems',
       'color': AppTokens.accentOrange,
       'ringColor': AppTokens.accentRing,

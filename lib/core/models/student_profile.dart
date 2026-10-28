@@ -30,6 +30,34 @@ class StudentStats {
       'lastActiveDate': lastActiveDate?.toIso8601String(),
     };
   }
+
+  StudentStats copyWith({
+    int? totalXp,
+    int? coins,
+    int? streakDays,
+    DateTime? lastActiveDate,
+  }) {
+    return StudentStats(
+      totalXp: totalXp ?? this.totalXp,
+      coins: coins ?? this.coins,
+      streakDays: streakDays ?? this.streakDays,
+      lastActiveDate: lastActiveDate ?? this.lastActiveDate,
+    );
+  }
+}
+
+/// Tolerant truthiness for the diagnostic-completed flag so a value stored as
+/// `true`, `1`, or `"true"` (across Supabase/legacy encodings) is recognized.
+/// This only widens parsing of the existing flag; it does NOT treat scores or
+/// `current_level` as completion evidence.
+bool _truthyDiagnosticCompleted(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final s = value.toLowerCase().trim();
+    return s == 'true' || s == '1' || s == 'yes';
+  }
+  return false;
 }
 
 DateTime? _parseDateTime(dynamic value) {
@@ -153,24 +181,46 @@ class StudentProfile {
         map['mathalino_tier']?.toString() ??
         'Beginner';
 
-    // Parse stats — robust support for nested stats map, flat Supabase columns, and legacy currentXP
+    // Parse stats. AUTHORITATIVE precedence: the flat `total_xp` / `coins`
+    // columns come from student_progress (only that table exposes `total_xp`;
+    // in the composite merge `progressRow.coins` overwrites the users/students
+    // mirror). Prefer them over any legacy nested `stats` JSON or `current_xp`
+    // mirrors. Null-aware `??` chaining (not truthiness) keeps a legitimate
+    // authoritative 0; the nested / mirror fallbacks run only when the
+    // authoritative column is genuinely absent (e.g. no student_progress row).
     final statsObj = map['stats'];
+    final nestedStats = statsObj is Map ? statsObj : const {};
     final statsMap = <String, dynamic>{
-      'totalXp': (statsObj is Map ? (statsObj['totalXp'] ?? statsObj['currentXP'] ?? statsObj['xp']) : null) ??
-          map['total_xp'] ?? map['current_xp'] ?? map['currentXP'] ?? map['totalXp'] ?? map['xp'] ?? 0,
-      'coins': (statsObj is Map ? statsObj['coins'] : null) ??
-          map['coins'] ?? 0,
-      'streakDays': (statsObj is Map ? (statsObj['streakDays'] ?? statsObj['streak_days'] ?? statsObj['readingStreak']) : null) ??
-          map['streak_days'] ?? map['streakDays'] ?? 0,
-      'lastActiveDate': (statsObj is Map ? (statsObj['lastActiveDate'] ?? statsObj['last_active_date'] ?? statsObj['lastActive']) : null) ??
-          map['last_active_date'] ?? map['lastActiveDate'] ?? map['last_login'],
+      'totalXp': map['total_xp'] ??
+          nestedStats['totalXp'] ?? nestedStats['currentXP'] ?? nestedStats['xp'] ??
+          map['current_xp'] ?? map['currentXP'] ?? map['totalXp'] ?? map['xp'] ?? 0,
+      'coins': map['coins'] ??
+          nestedStats['coins'] ?? 0,
+      'streakDays': map['streak_days'] ??
+          map['streakDays'] ??
+          (statsObj is Map
+              ? (statsObj['streakDays'] ??
+                  statsObj['streak_days'] ??
+                  statsObj['readingStreak'])
+              : null) ??
+          0,
+      'lastActiveDate': (statsObj is Map
+              ? (statsObj['lastActiveDate'] ??
+                  statsObj['last_active_date'] ??
+                  statsObj['lastActive'])
+              : null) ??
+          map['last_active_date'] ??
+          map['lastActiveDate'] ??
+          map['updated_at'] ??
+          map['last_login'],
     };
 
     final diagObj = map['diagnostic'] is Map ? (map['diagnostic'] as Map) : null;
 
-    final diagCompleted = map['diagnostic_completed'] == true ||
-        map['diagnosticCompleted'] == true ||
-        diagObj?['completed'] == true;
+    final diagCompleted = _truthyDiagnosticCompleted(
+          map['diagnostic_completed']) ||
+        _truthyDiagnosticCompleted(map['diagnosticCompleted']) ||
+        _truthyDiagnosticCompleted(diagObj?['completed']);
 
     final diagScore = (map['diagnostic_score'] ?? map['diagnosticScore'] ?? diagObj?['score'] ?? 0) as int;
 
@@ -389,4 +439,76 @@ class StudentProfile {
 
   /// Alias for backward compatibility
   Map<String, dynamic> toFirestore([dynamic options]) => toMap();
+
+  StudentProfile copyWith({
+    String? uid,
+    String? lrn,
+    String? displayName,
+    String? role,
+    int? gradeLevel,
+    String? gradeLevelLabel,
+    String? section,
+    String? studentStatus,
+    bool? needsTeacherSupport,
+    String? parentGuardianName,
+    String? parentGuardianEmail,
+    String? parentGuardianPhone,
+    bool? isParentLinked,
+    String? linkedParentUid,
+    String? assignedCategory,
+    String? assignedTier,
+    int? currentLevel,
+    int? startingLevel,
+    StudentStats? stats,
+    List<String>? usedQuestionsHistory,
+    bool? diagnosticCompleted,
+    int? diagnosticScore,
+    double? diagnosticPercentage,
+    List<String>? diagnosticFlags,
+    DateTime? diagnosticCompletedAt,
+    DateTime? diagnosticTimestamp,
+    String? contentPool,
+    List<String>? completedZones,
+    Map<String, String>? masteryOverview,
+    String? verificationCode,
+    String? avatarUrl,
+    Map<String, String>? levelStatusMap,
+    DateTime? updatedAt,
+  }) {
+    return StudentProfile(
+      uid: uid ?? this.uid,
+      lrn: lrn ?? this.lrn,
+      displayName: displayName ?? this.displayName,
+      role: role ?? this.role,
+      gradeLevel: gradeLevel ?? this.gradeLevel,
+      gradeLevelLabel: gradeLevelLabel ?? this.gradeLevelLabel,
+      section: section ?? this.section,
+      studentStatus: studentStatus ?? this.studentStatus,
+      needsTeacherSupport: needsTeacherSupport ?? this.needsTeacherSupport,
+      parentGuardianName: parentGuardianName ?? this.parentGuardianName,
+      parentGuardianEmail: parentGuardianEmail ?? this.parentGuardianEmail,
+      parentGuardianPhone: parentGuardianPhone ?? this.parentGuardianPhone,
+      isParentLinked: isParentLinked ?? this.isParentLinked,
+      linkedParentUid: linkedParentUid ?? this.linkedParentUid,
+      assignedCategory: assignedCategory ?? this.assignedCategory,
+      assignedTier: assignedTier ?? this.assignedTier,
+      currentLevel: currentLevel ?? this.currentLevel,
+      startingLevel: startingLevel ?? this.startingLevel,
+      stats: stats ?? this.stats,
+      usedQuestionsHistory: usedQuestionsHistory ?? this.usedQuestionsHistory,
+      diagnosticCompleted: diagnosticCompleted ?? this.diagnosticCompleted,
+      diagnosticScore: diagnosticScore ?? this.diagnosticScore,
+      diagnosticPercentage: diagnosticPercentage ?? this.diagnosticPercentage,
+      diagnosticFlags: diagnosticFlags ?? this.diagnosticFlags,
+      diagnosticCompletedAt: diagnosticCompletedAt ?? this.diagnosticCompletedAt,
+      diagnosticTimestamp: diagnosticTimestamp ?? this.diagnosticTimestamp,
+      contentPool: contentPool ?? this.contentPool,
+      completedZones: completedZones ?? this.completedZones,
+      masteryOverview: masteryOverview ?? this.masteryOverview,
+      verificationCode: verificationCode ?? this.verificationCode,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      levelStatusMap: levelStatusMap ?? this.levelStatusMap,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

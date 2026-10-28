@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/models/question_model.dart';
 import '../core/services/game_logic_service.dart';
+import '../core/services/answering_timer.dart';
 import '../core/services/question_bank_service.dart';
 import '../core/services/supabase_service.dart';
 
@@ -35,6 +36,12 @@ enum PlayerPhase {
 
   /// Student has exceeded maximum allowed remediation cycles and requires teacher support.
   needsTeacherSupport,
+
+  /// Preparation / Moderate levels only: the student has run out of hearts
+  /// (three incorrect answers). The UI shows a supportive "Let's Practice
+  /// Again!" screen offering Try Again / Back to Adventure Map. No further
+  /// answers are accepted and nothing is persisted while in this phase.
+  outOfHearts,
 }
 
 /// Drives a single level session on the Adventure Map for Zones 1–3
@@ -58,6 +65,7 @@ class LevelProvider extends ChangeNotifier {
   final GameLogicService _gameLogic;
   final QuestionBankService _questionBank;
   final SupabaseService _supabaseService;
+  final AnsweringTimer _answeringTimer;
 
   /// When true, database writes are skipped (used by unit tests).
   final bool _dryRun;
@@ -70,14 +78,22 @@ class LevelProvider extends ChangeNotifier {
   /// unchanged to match the reference `gameLogic.js` contract.)
   static const int _minRemediationAttempts = 4;
 
+  /// Starting hearts for Preparation / Moderate levels. Each incorrect answer
+  /// removes exactly one heart; at zero the student is routed to
+  /// [PlayerPhase.outOfHearts] for a supportive retry. Challenge levels and the
+  /// remediation loop ignore hearts entirely.
+  static const int kMaxHearts = 3;
+
   LevelProvider({
     GameLogicService? gameLogic,
     QuestionBankService? questionBank,
     SupabaseService? supabaseService,
+    AnsweringTimer? answeringTimer,
     this._dryRun = false,
   })  : _gameLogic = gameLogic ?? const GameLogicService(),
         _questionBank = questionBank ?? QuestionBankService(),
-        _supabaseService = supabaseService ?? SupabaseService();
+        _supabaseService = supabaseService ?? SupabaseService(),
+        _answeringTimer = answeringTimer ?? AnsweringTimer();
 
   void attachFirestore(dynamic _) {} // no-op kept for call-site compatibility
 
@@ -106,8 +122,22 @@ class LevelProvider extends ChangeNotifier {
   bool? _lastCorrect;
   dynamic _lastSelected;
   bool _feedbackPending = false;
+
+  /// Actual persisted reward outcome for the most recent confirmed level
+  /// completion. Null until a save confirms, and cleared on a new attempt so a
+  /// future Level Complete animation only ever reflects genuinely saved
+  /// Stars/XP/Coins. Data-only in this step — no UI consumes it yet.
+  LevelCompletionOutcome? _completionOutcome;
+
+  /// Increments whenever a new attempt/level begins so a late async save result
+  /// from an earlier attempt cannot overwrite the current outcome.
+  int _completionGeneration = 0;
   int _score = 0; // number of correct answers in this level session
   int _attemptedTotal = 0; // number of answered questions in this session
+
+  // Hearts (Preparation / Moderate levels only). Never below 0, never above
+  // [kMaxHearts]. Reset at the start of every level session.
+  int _hearts = kMaxHearts;
 
   // ── Getters ──────────────────────────────────────────────────────────
   String get userId => _userId;
@@ -153,6 +183,60 @@ class LevelProvider extends ChangeNotifier {
   /// Total number of questions answered in the current level session.
   int get attemptedTotal => _attemptedTotal;
 
+  /// Remaining hearts for the current level session (Preparation / Moderate).
+  /// Always between 0 and [kMaxHearts]; challenge levels ignore this value.
+  int get hearts => _hearts;
+
+  /// Score shown on the completion screen and persisted for the just-completed
+  /// level. Non-Challenge (Preparation / Moderate) levels report the universal
+  /// three-chance score via [GameLogicService.chanceScoreForAttempts] (attempt
+  /// 1/2/3 → 3/2/1); Challenge levels keep their raw correct-answer count so
+  /// their existing question-based scoring is completely unchanged.
+  int get completedScore => _gameLogic.isChallengeLevel(_level)
+      ? _score
+      : (_score == 0 ? 0 : _gameLogic.chanceScoreForAttempts(_attemptedTotal));
+
+  /// Denominator paired with [completedScore]: the fixed
+  /// [GameLogicService.kMaxChances] (3) for non-Challenge chance scoring, or the
+  /// attempted-question total for Challenge levels.
+  int get completedMax => _gameLogic.isChallengeLevel(_level)
+      ? (_attemptedTotal > 0 ? _attemptedTotal : 1)
+      : GameLogicService.kMaxChances;
+
+  /// The confirmed persisted reward outcome for the current completion, or
+  /// null when nothing has been confirmed yet. Data-only; not yet consumed by
+  /// the Level Complete UI.
+  LevelCompletionOutcome? get completionOutcome => _completionOutcome;
+
+  /// The per-attempt answering timer measuring active student answering time.
+  AnsweringTimer get answeringTimer => _answeringTimer;
+
+  /// Starts the answering timer upon the first user interaction with an answer.
+  /// Subsequent calls during the same attempt are no-ops.
+  void recordAnswerInteraction() {
+    _answeringTimer.startOnFirstInteraction();
+  }
+
+  /// Pauses the answering timer (e.g. app backgrounded/inactive).
+  void pauseAnsweringTimer() {
+    _answeringTimer.pause();
+  }
+
+  /// Resumes the answering timer when returning to active gameplay.
+  void resumeAnsweringTimer() {
+    if (!_feedbackPending &&
+        (_phase == PlayerPhase.playing ||
+         _phase == PlayerPhase.remediationPrep ||
+         _phase == PlayerPhase.challengeRetry)) {
+      _answeringTimer.resume();
+    }
+  }
+
+  /// Permanently stops the answering timer for the current attempt.
+  void stopAnsweringTimer() {
+    _answeringTimer.stop();
+  }
+
   /// Begins a level session for [level]. [usedHistory] is the student's
   /// existing `usedQuestionsHistory` from their profile. [seedBank] may be
   /// supplied in tests to avoid a network round-trip.
@@ -166,6 +250,8 @@ class LevelProvider extends ChangeNotifier {
     _userId = userId;
     _lrn = lrn ?? '';
     _level = level;
+    _completionOutcome = null;
+    _completionGeneration++;
     _usedHistory = List.of(usedHistory);
     _preparationRange = const [];
     _correctPrep = 0;
@@ -179,6 +265,8 @@ class LevelProvider extends ChangeNotifier {
     _feedbackPending = false;
     _score = 0;
     _attemptedTotal = 0;
+    _hearts = kMaxHearts;
+    _answeringTimer.reset();
     _isLoading = true;
     notifyListeners();
     try {
@@ -202,6 +290,7 @@ class LevelProvider extends ChangeNotifier {
 
   /// The single entry point the screen uses when an answer is submitted.
   Future<void> submitAnswer(dynamic selected) async {
+    recordAnswerInteraction();
     switch (_phase) {
       case PlayerPhase.remediationPrep:
         return submitPrepAnswer(selected);
@@ -232,6 +321,14 @@ class LevelProvider extends ChangeNotifier {
         await _startRemediation();
         return;
       }
+      // Preparation / Moderate only: remove exactly one heart (never below
+      // zero). At zero hearts enter the supportive out-of-hearts state WITHOUT
+      // persisting a completion or granting any reward.
+      _hearts = (_hearts - 1).clamp(0, kMaxHearts);
+      if (_hearts == 0) {
+        _phase = PlayerPhase.outOfHearts;
+        _answeringTimer.stop();
+      }
       notifyListeners();
       return;
     }
@@ -239,6 +336,7 @@ class LevelProvider extends ChangeNotifier {
     if (!_gameLogic.isChallengeLevel(_level)) {
       // Preparation level: a single CORRECT answer completes the level.
       _phase = PlayerPhase.levelComplete;
+      _answeringTimer.stop();
       unawaited(_persistHistory());
       unawaited(_persistComplete());
       notifyListeners();
@@ -250,6 +348,7 @@ class LevelProvider extends ChangeNotifier {
     _phase = _level == kFinalBossLevel
         ? PlayerPhase.adventureComplete
         : PlayerPhase.levelComplete;
+    _answeringTimer.stop();
     unawaited(_persistComplete());
     notifyListeners();
   }
@@ -287,6 +386,7 @@ class LevelProvider extends ChangeNotifier {
     _lastSelected = selected;
     _lastCorrect = correct;
     _feedbackPending = true;
+    _answeringTimer.pause();
     _attemptedTotal += 1;
     if (correct) _score += 1;
     return correct;
@@ -300,8 +400,43 @@ class LevelProvider extends ChangeNotifier {
     _lastCorrect = null;
     _lastSelected = null;
     _feedbackPending = false;
+    if (_phase != PlayerPhase.levelComplete &&
+        _phase != PlayerPhase.adventureComplete &&
+        _phase != PlayerPhase.outOfHearts &&
+        _phase != PlayerPhase.needsTeacherSupport &&
+        _phase != PlayerPhase.levelFailed) {
+      _answeringTimer.resume();
+    }
     notifyListeners();
   }
+
+  /// Restarts the current Preparation / Moderate level in place after the
+  /// student runs out of hearts. Resets hearts to [kMaxHearts], zeroes the
+  /// session score and attempted-answer counter, selects a valid question, and
+  /// returns to [PlayerPhase.playing]. Performs NO database writes and grants NO
+  /// rewards — it is purely an in-session retry.
+  void restartLevelForHearts() {
+    _hearts = kMaxHearts;
+    _score = 0;
+    _attemptedTotal = 0;
+    _lastAnsweredQuestion = null;
+    _lastCorrect = null;
+    _lastSelected = null;
+    _feedbackPending = false;
+    _completionOutcome = null;
+    _completionGeneration++;
+    _answeringTimer.reset();
+    final q = _gameLogic.selectQuestion(
+      _bank,
+      level: _level,
+      usedQuestionsHistory: _usedHistory,
+    );
+    _currentQuestion = q?.withShuffledChoices();
+    _phase = q == null ? PlayerPhase.levelFailed : PlayerPhase.playing;
+    _error = q == null ? 'No available question for level $_level.' : null;
+    notifyListeners();
+  }
+
   Future<void> _pickPrepQuestion() async {
     final q = _gameLogic.selectRemediationQuestion(
       _bank,
@@ -358,6 +493,7 @@ class LevelProvider extends ChangeNotifier {
       if (_remediationCycleCount > 3) {
         _needsTeacherSupport = true;
         _phase = PlayerPhase.needsTeacherSupport;
+        _answeringTimer.stop();
         notifyListeners();
         unawaited(_persistTeacherSupport());
         return;
@@ -400,6 +536,7 @@ class LevelProvider extends ChangeNotifier {
     _phase = _level == kFinalBossLevel
         ? PlayerPhase.adventureComplete
         : PlayerPhase.levelComplete;
+    _answeringTimer.stop();
     notifyListeners();
     unawaited(_persistHistory());
     unawaited(_persistComplete());
@@ -478,25 +615,51 @@ class LevelProvider extends ChangeNotifier {
       final isGameComplete = _level == kFinalBossLevel;
       final nextLevel = isGameComplete ? kFinalBossLevel : _level + 1;
       final zone = _level <= 20 ? 'ZONE_1' : _level <= 40 ? 'ZONE_2' : 'ZONE_3';
-      final accuracyPct = _attemptedTotal > 0
-          ? double.parse((_score / _attemptedTotal * 100).toStringAsFixed(1))
-          : 0.0;
       final isChallenge = _gameLogic.isChallengeLevel(_level);
+      // Non-Challenge levels persist the universal three-chance score (X/3);
+      // Challenge levels keep their raw correct-count / attempted denominator.
+      // Star thresholds are unchanged, so the persisted stars derive to the same
+      // chance score shown on screen (3/3 → 3, 2/3 → 2, 1/3 → 1).
+      final outScore = completedScore;
+      final outMax = completedMax;
+      final accuracyPct = outMax > 0
+          ? double.parse((outScore / outMax * 100).toStringAsFixed(1))
+          : 0.0;
 
-      await _supabaseService.saveLevelCompletion(
+      // Capture the attempt generation + level so a late async result from an
+      // earlier attempt/level can never overwrite the current one's outcome.
+      final generation = _completionGeneration;
+      final completionLevel = _level;
+
+      final outcome = await _supabaseService.saveLevelCompletionWithOutcome(
         userId: _userId,
         lrn: _lrn,
         level: _level,
         nextLevel: nextLevel,
         isGameComplete: isGameComplete,
         usedQuestions: _usedHistory,
-        score: _score,
-        maxScore: _attemptedTotal > 0 ? _attemptedTotal : 1,
+        score: outScore,
+        maxScore: outMax,
         accuracyPct: accuracyPct,
         isChallenge: isChallenge,
         difficulty: difficulty,
         zone: zone,
+        // Stored inside the EXISTING student_results.result_data JSONB only —
+        // no schema/column/write-order change. Only new non-Challenge records
+        // are tagged; historical rows and Challenge results are never touched.
+        scoringMode: isChallenge ? null : 'CHANCE_OF_3',
+        attemptNumber: isChallenge ? null : _attemptedTotal,
+        durationSeconds: _answeringTimer.elapsedSeconds,
       );
+
+      // Ignore a result that arrived after a newer attempt/level began.
+      if (generation != _completionGeneration || completionLevel != _level) {
+        return;
+      }
+      // Adopt the confirmed persisted outcome. A test double / unconfirmed save
+      // returns saveSucceeded=false so the Level Complete UI must not animate.
+      _completionOutcome = outcome;
+      notifyListeners();
     } catch (e) {
       debugPrint('[LevelProvider] persistComplete error: $e');
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/avatar_shop_service.dart';
 import '../../core/theme/mathalino_tokens.dart';
 import 'home_strings.dart';
 
@@ -19,6 +20,9 @@ class HomeHeader extends StatelessWidget {
   final int level;
   final int coins;
   final int xp;
+  final int stars;
+  final String? avatarPath;
+  final VoidCallback? onAvatarTap;
 
   const HomeHeader({
     super.key,
@@ -26,6 +30,9 @@ class HomeHeader extends StatelessWidget {
     required this.level,
     required this.coins,
     required this.xp,
+    required this.stars,
+    this.avatarPath,
+    this.onAvatarTap,
   });
 
   @override
@@ -38,15 +45,63 @@ class HomeHeader extends StatelessWidget {
             Semantics(
               label: HomeStrings.avatarLabel,
               image: true,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: AppTokens.primaryIndigo,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.person_outline_rounded,
-                    color: Colors.white, size: 26),
+              child: AnimatedBuilder(
+                animation: AvatarShopService.instance,
+                builder: (context, _) {
+                  final equipped = AvatarShopService.instance.equippedAvatar;
+                  final path = (avatarPath != null && avatarPath!.isNotEmpty)
+                      ? avatarPath!
+                      : equipped.assetPath;
+
+                  Widget avatarWidget = Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTokens.primaryIndigo,
+                        width: 2.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Image.asset(
+                          path,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset(
+                            'assets/avatar/headlogo.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.person_rounded,
+                              color: AppTokens.primaryIndigo,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+
+                  if (onAvatarTap != null) {
+                    return Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: onAvatarTap,
+                        customBorder: const CircleBorder(),
+                        child: avatarWidget,
+                      ),
+                    );
+                  }
+
+                  return avatarWidget;
+                },
               ),
             ),
             const SizedBox(width: 10),
@@ -91,13 +146,14 @@ class HomeHeader extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             _StatPill(
-              border: AppTokens.primaryIndigo,
+              border: AppTokens.tileYellow,
               icon: Icons.star_rounded,
-              iconColor: AppTokens.primaryIndigo,
-              text: HomeStrings.xp(xp),
-              textColor: AppTokens.headingIndigo,
-              semantics: HomeStrings.xpLabel(xp),
+              iconColor: AppTokens.tileYellow,
+              text: HomeStrings.stars(stars),
+              textColor: AppTokens.tileYellow,
+              semantics: HomeStrings.starsLabel(stars),
             ),
+
           ],
         ),
       ),
@@ -360,6 +416,7 @@ class HomeBottomNav extends StatelessWidget {
   static const List<HomeNavItem> items = [
     HomeNavItem('Home', Icons.home_outlined, Icons.home_rounded),
     HomeNavItem('Learn', Icons.menu_book_outlined, Icons.menu_book_rounded),
+    HomeNavItem('Avatar Shop', Icons.storefront_outlined, Icons.storefront_rounded),
     HomeNavItem('Progress', Icons.bar_chart_rounded, Icons.bar_chart_rounded),
     HomeNavItem('Profile', Icons.person_outline_rounded, Icons.person_rounded),
   ];
@@ -430,7 +487,7 @@ class _NavButton extends StatelessWidget {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              width: 56,
+              width: 52,
               height: 30,
               decoration: BoxDecoration(
                 color: selected ? AppTokens.navActivePill : Colors.transparent,
@@ -443,14 +500,20 @@ class _NavButton extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              item.label,
-              maxLines: 1,
-              style: AppTokens.nunito(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                color: color,
-                height: 1.2,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  style: AppTokens.nunito(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                    color: color,
+                    height: 1.2,
+                  ),
+                ),
               ),
             ),
           ],

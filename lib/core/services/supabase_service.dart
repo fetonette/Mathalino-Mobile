@@ -4,6 +4,192 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/diagnostic_result.dart';
 import '../models/student_profile.dart';
 import '../models/student_result_model.dart';
+import 'rewards_service.dart';
+
+/// Outcome of resolving whether a student has a *successfully completed*
+/// RMA diagnostic, using only trustworthy, authenticated-student-scoped
+/// evidence (never `current_level`, never an arbitrary score).
+enum DiagnosticCompletionStatus {
+  /// Positive evidence of a completed diagnostic exists.
+  completed,
+
+  /// Reads succeeded and no completed-diagnostic evidence exists → take RMA.
+  none,
+
+  /// Data could not be determined (client unavailable, network, or RLS).
+  /// Callers must NOT force a diagnostic retake on this state.
+  indeterminate,
+}
+
+/// Pure, dependency-free completion decision used by
+/// [SupabaseService.resolveDiagnosticCompletion]. Kept separate so the routing
+/// logic is unit-testable without a live Supabase client.
+///
+/// Rules:
+/// * [readFailed] short-circuits to [DiagnosticCompletionStatus.indeterminate]
+///   so a failed read is never mistaken for "new student".
+/// * A truthful completion flag on `student_assessments` ([assessmentFlag])
+///   marks completion.
+/// * An existing successfully-completed DIAGNOSTIC row in `student_results`
+///   ([hasDiagnosticResult]) marks completion — this is the durable evidence
+///   that survives accounts whose `student_assessments` row was never created
+///   (that table is UPDATE-only in this app).
+/// * `current_level` is intentionally NOT an input.
+DiagnosticCompletionStatus resolveDiagnosticStatusFromEvidence({
+  required bool readFailed,
+  required bool assessmentFlag,
+  required bool hasDiagnosticResult,
+}) {
+  if (readFailed) return DiagnosticCompletionStatus.indeterminate;
+  if (assessmentFlag || hasDiagnosticResult) {
+    return DiagnosticCompletionStatus.completed;
+  }
+  return DiagnosticCompletionStatus.none;
+}
+
+/// Outcome of reading the most recent *prior* Daily Challenge completion date
+/// from `student_daily_progress`. That table is written only by
+/// [SupabaseService.recordDailyChallenge], so it reflects Daily Challenge
+/// activity and can never be advanced by ordinary Adventure Map gameplay
+/// (which writes `students.stats.lastActive` instead).
+enum DailyChallengeAnchorSource {
+  /// A Daily Challenge completed on an earlier day exists; [DailyChallengeAnchor.date]
+  /// is that day.
+  found,
+
+  /// The read succeeded and there is genuinely no earlier Daily Challenge
+  /// completion (this is the student's first-ever one).
+  none,
+
+  /// The read could not be completed (no client, network, or RLS). Callers must
+  /// NOT downgrade a known streak solely because history was unconfirmable.
+  unreadable,
+}
+
+/// Typed result of [SupabaseService.fetchLastDailyChallengeDate].
+class DailyChallengeAnchor {
+  final DailyChallengeAnchorSource source;
+
+  /// The last completed Daily Challenge day strictly before today. Non-null only
+  /// when [source] is [DailyChallengeAnchorSource.found].
+  final DateTime? date;
+
+  const DailyChallengeAnchor(this.source, [this.date]);
+}
+
+/// The ACTUAL persisted outcome of a single level-completion save. Immutable
+/// and data-only: it lets a future Level Complete animation show only genuinely
+/// saved Stars/XP/Coins — including the precise star delta on replays (never
+/// the latest-attempt estimate).
+class LevelCompletionOutcome {
+  const LevelCompletionOutcome({
+    required this.level,
+    required this.xpAwarded,
+    required this.coinsAwarded,
+    required this.totalXpBefore,
+    required this.totalXpAfter,
+    required this.coinsBefore,
+    required this.coinsAfter,
+    required this.previousSavedStars,
+    required this.newSavedStars,
+    required this.totalStarsGain,
+    required this.wasFirstCompletion,
+    required this.isChallenge,
+    required this.saveSucceeded,
+    required this.rewardsPersisted,
+    required this.starsPersisted,
+    this.durationSeconds,
+  });
+
+  /// Neutral, never-confirmed outcome. Returned when the write path was
+  /// replaced by a test double (or produced no persisted result), so consumers
+  /// MUST NOT animate any reward (`saveSucceeded`, `rewardsPersisted` and
+  /// `starsPersisted` are all false).
+  const LevelCompletionOutcome.unconfirmed({
+    required this.level,
+    required this.isChallenge,
+  })  : xpAwarded = 0,
+        coinsAwarded = 0,
+        totalXpBefore = 0,
+        totalXpAfter = 0,
+        coinsBefore = 0,
+        coinsAfter = 0,
+        previousSavedStars = 0,
+        newSavedStars = 0,
+        totalStarsGain = 0,
+        wasFirstCompletion = false,
+        saveSucceeded = false,
+        rewardsPersisted = false,
+        starsPersisted = false,
+        durationSeconds = null;
+
+  final int level;
+  final int xpAwarded;
+  final int coinsAwarded;
+  final int totalXpBefore;
+  final int totalXpAfter;
+  final int coinsBefore;
+  final int coinsAfter;
+  final int previousSavedStars;
+  final int newSavedStars;
+  final int totalStarsGain;
+  final bool wasFirstCompletion;
+  final bool isChallenge;
+  final bool saveSucceeded;
+
+  /// True only when the required reward writes (`student_progress` totals +
+  /// `student_results` audit) completed successfully and the core reached its
+  /// normal outcome return. A level_progress-only failure leaves this true while
+  /// `starsPersisted` is false, so XP/Coins were genuinely saved.
+  final bool rewardsPersisted;
+
+  /// True only when the `level_progress` upsert actually persisted (mirrors the
+  /// existing `levelProgressPersisted` result). Gates newly-earned star display.
+  final bool starsPersisted;
+  final int? durationSeconds;
+}
+
+/// Pure reward/progress decisions for [SupabaseService.saveLevelCompletion].
+///
+/// * XP/coins are granted only on a level's FIRST rewarded completion
+///   ([alreadyRewarded] == false). XP uses fixed amounts (50 XP for regular,
+///   100 XP for Challenge levels). Coins follow the Batch 9A approved formula:
+///   Coins earned = Stars earned × 5 (3★=15, 2★=10, 1★=5, 0★=0).
+///   A replay of an already-rewarded level grants 0 / 0, so practice never
+///   inflates rewards.
+/// * [currentLevel] is the greater of [nextLevel] and [previousCurrentLevel],
+///   so replaying an earlier level never moves progression backwards.
+({int xpGain, int coinGain, int currentLevel}) planLevelCompletionRewards({
+  required bool alreadyRewarded,
+  required bool isChallenge,
+  required int nextLevel,
+  required int previousCurrentLevel,
+  int stars = 0,
+}) {
+  final xpGain = alreadyRewarded ? 0 : (isChallenge ? 100 : 50);
+  final coinGain = alreadyRewarded ? 0 : (stars * 5);
+  final currentLevel =
+      nextLevel > previousCurrentLevel ? nextLevel : previousCurrentLevel;
+  return (xpGain: xpGain, coinGain: coinGain, currentLevel: currentLevel);
+}
+
+/// Preserves the HIGHEST `best_score` and `stars` for a `level_progress` row so
+/// a lower practice replay can never overwrite a better prior result. Stars use
+/// the app-wide thresholds (accuracy >= 90 → 3, >= 60 → 2, > 0 → 1, 0 → 0).
+({int bestScore, int stars}) mergeLevelProgress({
+  required int previousBestScore,
+  required int previousStars,
+  required int score,
+  required double accuracyPct,
+}) {
+  final newStars = accuracyPct >= 90
+      ? 3
+      : (accuracyPct >= 60 ? 2 : (accuracyPct > 0 ? 1 : 0));
+  return (
+    bestScore: previousBestScore > score ? previousBestScore : score,
+    stars: previousStars > newStars ? previousStars : newStars,
+  );
+}
 
 /// Central Supabase read/write wrapper for Mathalino Student App.
 ///
@@ -21,6 +207,11 @@ class SupabaseService {
   static final SupabaseService instance = SupabaseService();
 
   final SupabaseClient? _injectedClient;
+
+  /// Outcome most recently produced by [_saveLevelCompletionCore], surfaced by
+  /// [saveLevelCompletionWithOutcome]. Library-private; only read inside this
+  /// class immediately after the single write path runs.
+  LevelCompletionOutcome? _lastCompletionOutcome;
 
   SupabaseService({SupabaseClient? client}) : _injectedClient = client;
 
@@ -120,6 +311,88 @@ class SupabaseService {
       debugPrint('[SupabaseService] fetchStudentProfile error: $e');
       rethrow;
     }
+  }
+
+  /// Resolves, for the authenticated [userId] only, whether a completed RMA
+  /// diagnostic exists. Read-only: performs SELECTs scoped to `student_uid`/
+  /// `lrn` and never writes. Used by login routing so that a student whose
+  /// `student_assessments` completion flag was never persisted (that table is
+  /// UPDATE-only) is still recognized via their `student_results` DIAGNOSTIC
+  /// row, while a transient read/RLS failure surfaces as
+  /// [DiagnosticCompletionStatus.indeterminate] instead of "new student".
+  Future<DiagnosticCompletionStatus> resolveDiagnosticCompletion(
+    String userId,
+  ) async {
+    final client = _safeClient;
+    if (client == null || userId.isEmpty) {
+      return DiagnosticCompletionStatus.indeterminate;
+    }
+
+    try {
+      // 1. Resolve LRN from the users row (identity scoping, read-only).
+      final userRow =
+          await client.from('users').select('lrn').eq('id', userId).maybeSingle();
+      final lrn = userRow?['lrn']?.toString() ?? '';
+
+      // 2. Read the student_assessments completion flag (if a row exists).
+      Map<String, dynamic>? assessmentRow;
+      if (lrn.isNotEmpty) {
+        assessmentRow = await client
+            .from('student_assessments')
+            .select('diagnostic_completed, diagnostic')
+            .eq('lrn', lrn)
+            .maybeSingle();
+      }
+      assessmentRow ??= await client
+          .from('student_assessments')
+          .select('diagnostic_completed, diagnostic')
+          .eq('uid', userId)
+          .maybeSingle();
+
+      final assessmentFlag = _isDiagnosticCompletedFlag(assessmentRow);
+
+      // 3. Look for a successfully-completed DIAGNOSTIC result row, scoped to
+      //    this authenticated student. Such a row is only ever inserted after
+      //    the full 20-item diagnostic is answered and placement is computed
+      //    (see saveDiagnosticPlacement), so its existence is trustworthy
+      //    evidence — unlike an arbitrary score.
+      final resultFilter = client
+          .from('student_results')
+          .select('id')
+          .eq('student_uid', userId)
+          .eq('assessment_type', 'DIAGNOSTIC');
+      final hasDiagnosticResult = (await resultFilter.limit(1).maybeSingle()) != null;
+
+      return resolveDiagnosticStatusFromEvidence(
+        readFailed: false,
+        assessmentFlag: assessmentFlag,
+        hasDiagnosticResult: hasDiagnosticResult,
+      );
+    } catch (e) {
+      debugPrint('[SupabaseService] resolveDiagnosticCompletion error: $e');
+      return DiagnosticCompletionStatus.indeterminate;
+    }
+  }
+
+  /// Interprets a `student_assessments` row's completion signal tolerantly:
+  /// accepts the boolean column, its camelCase alias, the nested `diagnostic`
+  /// JSON `completed`, and common non-boolean truthy encodings (`1`, `"true"`).
+  static bool _isDiagnosticCompletedFlag(Map<String, dynamic>? row) {
+    if (row == null) return false;
+    return _truthyCompleted(row['diagnostic_completed']) ||
+        _truthyCompleted(row['diagnosticCompleted']) ||
+        (row['diagnostic'] is Map &&
+            _truthyCompleted((row['diagnostic'] as Map)['completed']));
+  }
+
+  static bool _truthyCompleted(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final s = value.toLowerCase().trim();
+      return s == 'true' || s == '1' || s == 'yes';
+    }
+    return false;
   }
 
   /// Subscribes to real-time profile updates for [userId].
@@ -251,6 +524,9 @@ class SupabaseService {
           userUpdates['coins'] = v;
           studentUpdates['coins'] = v;
           progressUpdates['coins'] = v;
+        } else if (k == 'avatar_url' || k == 'avatarUrl') {
+          userUpdates['avatar_url'] = v;
+          studentUpdates['avatar_url'] = v;
         } else if (k == 'current_level' || k == 'currentLevel' || k == 'level') {
           progressUpdates['current_level'] = v;
         } else if (k == 'starting_level' || k == 'startingLevel') {
@@ -349,9 +625,80 @@ class SupabaseService {
 
   // ── Level Progression ──────────────────────────────────────────────────────
 
-  /// Records level completion, unlocking the subsequent level node,
-  /// updating `student_progress`, upserting `level_progress`, and inserting a
-  /// `student_results` session record.
+  /// Read-only Total Stars: the SUM of `level_progress.stars` for COMPLETED
+  /// levels belonging to [lrn]. Each level counts exactly once because
+  /// `level_progress` has a composite primary key (student_lrn, level). NULL
+  /// stars are treated as 0. Diagnostic placement-skipped levels are naturally
+  /// excluded because they have no genuine completed `level_progress` row.
+  ///
+  /// This NEVER writes and NEVER uses `level_status_map`. It intentionally lets
+  /// read/RLS/connection failures propagate (it does not silently return 0) so
+  /// callers can preserve the last known value on error.
+  Future<int> fetchTotalStars(String lrn) async {
+    final rows = await _client
+        .from('level_progress')
+        .select('stars')
+        .eq('student_lrn', lrn)
+        .eq('status', 'completed');
+    int total = 0;
+    for (final row in rows) {
+      final stars = row['stars'];
+      if (stars is int) {
+        total += stars;
+      } else if (stars is num) {
+        total += stars.toInt();
+      }
+    }
+    return total;
+  }
+
+  /// Read-only per-level earned stars for [lrn], keyed by level number.
+  /// Includes ONLY genuine completed `level_progress` rows (`status='completed'`).
+  /// Diagnostic placement-skipped levels have no row and are therefore ABSENT
+  /// from the map (so callers can distinguish "no completed row" from a real
+  /// rating). A completed row is always present even when its stored `stars`
+  /// value is NULL, which is recorded as 0 — preserving the distinction between
+  /// an absent row (no key) and a genuine completed row with a zero/NULL value
+  /// (key present, value 0). The composite primary key (student_lrn, level)
+  /// guarantees each level appears once.
+  ///
+  /// This NEVER writes and NEVER uses `level_status_map`. Read/RLS/connection
+  /// failures propagate (it never silently returns an empty map) so callers can
+  /// preserve the last-known map on error.
+  Future<Map<int, int>> fetchLevelStarsByLevel(String lrn) async {
+    final rows = await _client
+        .from('level_progress')
+        .select('level,stars')
+        .eq('student_lrn', lrn)
+        .eq('status', 'completed');
+    final Map<int, int> result = {};
+    for (final row in rows) {
+      final rawLevel = row['level'];
+      final int? level = rawLevel is int
+          ? rawLevel
+          : rawLevel is num
+              ? rawLevel.toInt()
+              : int.tryParse(rawLevel?.toString() ?? '');
+      if (level == null) continue;
+      final rawStars = row['stars'];
+      int stars = 0;
+      if (rawStars is int) {
+        stars = rawStars;
+      } else if (rawStars is num) {
+        stars = rawStars.toInt();
+      }
+      result[level] = stars;
+    }
+    return result;
+  }
+
+  /// Records level completion across multiple tables.
+  ///
+  /// Public `Future<void>` signature is intentionally preserved so every
+  /// existing caller and test double keeps compiling and behaving. The real
+  /// write logic now lives in [_saveLevelCompletionCore] (a single write path,
+  /// reused — never duplicated). This wrapper stashes that core's outcome so
+  /// [saveLevelCompletionWithOutcome] can surface the ACTUAL persisted result.
   Future<void> saveLevelCompletion({
     required String userId,
     required String lrn,
@@ -365,6 +712,103 @@ class SupabaseService {
     required bool isChallenge,
     required String difficulty,
     required String zone,
+    String? scoringMode,
+    int? attemptNumber,
+    int? durationSeconds,
+  }) async {
+    _lastCompletionOutcome = await _saveLevelCompletionCore(
+      userId: userId,
+      lrn: lrn,
+      level: level,
+      nextLevel: nextLevel,
+      isGameComplete: isGameComplete,
+      usedQuestions: usedQuestions,
+      score: score,
+      maxScore: maxScore,
+      accuracyPct: accuracyPct,
+      isChallenge: isChallenge,
+      difficulty: difficulty,
+      zone: zone,
+      scoringMode: scoringMode,
+      attemptNumber: attemptNumber,
+      durationSeconds: durationSeconds,
+    );
+  }
+
+  /// Same behaviour as [saveLevelCompletion] but returns the actual persisted
+  /// [LevelCompletionOutcome]. It REUSES the existing single write path by
+  /// delegating through the overridable [saveLevelCompletion] — no second
+  /// reward calculation and no second reward-writing path. When a test double
+  /// overrides [saveLevelCompletion] (and therefore produces no persisted
+  /// result), [LevelCompletionOutcome.unconfirmed] is returned so consumers
+  /// never animate rewards that were not genuinely saved.
+  Future<LevelCompletionOutcome> saveLevelCompletionWithOutcome({
+    required String userId,
+    required String lrn,
+    required int level,
+    required int nextLevel,
+    required bool isGameComplete,
+    required List<String> usedQuestions,
+    required int score,
+    required int maxScore,
+    required double accuracyPct,
+    required bool isChallenge,
+    required String difficulty,
+    required String zone,
+    String? scoringMode,
+    int? attemptNumber,
+    int? durationSeconds,
+  }) async {
+    _lastCompletionOutcome = null;
+    await saveLevelCompletion(
+      userId: userId,
+      lrn: lrn,
+      level: level,
+      nextLevel: nextLevel,
+      isGameComplete: isGameComplete,
+      usedQuestions: usedQuestions,
+      score: score,
+      maxScore: maxScore,
+      accuracyPct: accuracyPct,
+      isChallenge: isChallenge,
+      difficulty: difficulty,
+      zone: zone,
+      scoringMode: scoringMode,
+      attemptNumber: attemptNumber,
+      durationSeconds: durationSeconds,
+    );
+    return _lastCompletionOutcome ??
+        LevelCompletionOutcome.unconfirmed(
+          level: level,
+          isChallenge: isChallenge,
+        );
+  }
+
+  /// Records level completion, unlocking the subsequent level node,
+  /// updating `student_progress`, upserting `level_progress`, and inserting a
+  /// `student_results` session record. Returns the actual persisted outcome.
+  /// This is the single level-completion write path.
+  Future<LevelCompletionOutcome> _saveLevelCompletionCore({
+    required String userId,
+    required String lrn,
+    required int level,
+    required int nextLevel,
+    required bool isGameComplete,
+    required List<String> usedQuestions,
+    required int score,
+    required int maxScore,
+    required double accuracyPct,
+    required bool isChallenge,
+    required String difficulty,
+    required String zone,
+    // Optional scoring-mode metadata for chance-scored (non-Challenge)
+    // completions. These are written ONLY into the existing `result_data` JSONB
+    // (no new column, no schema change) and only when non-null, so historical
+    // rows and Challenge results are unaffected. See the caller in
+    // `LevelProvider`.
+    String? scoringMode,
+    int? attemptNumber,
+    int? durationSeconds,
   }) async {
     final client = _client;
     final now = DateTime.now().toIso8601String();
@@ -374,6 +818,21 @@ class SupabaseService {
       final u = await client.from('users').select('lrn').eq('id', userId).maybeSingle();
       resolvedLrn = u?['lrn']?.toString() ?? '';
     }
+
+    // Reward ledger check — XP/coins are granted only the FIRST time a student
+    // earns a successful gameplay result for this level. Prior rewarded gameplay
+    // is identified from `student_results` rows (student_uid + level_number +
+    // LEVEL_PRACTICE/LEVEL_CHALLENGE + xp_awarded > 0). This is gameplay-only
+    // evidence: neither RMA placement (DIAGNOSTIC) nor remediation alerts
+    // (REMEDIATION_SUPPORT_NEEDED, xp_awarded absent) create such rows, so
+    // placement-skipped levels correctly report `false` and keep their first
+    // real reward. A read failure is surfaced (never silently assumed first
+    // completion) so a replay can never double-award on a transient fault.
+    final bool alreadyRewarded = await _hasPriorRewardedCompletion(
+      client,
+      userId: userId,
+      level: level,
+    );
 
     // 1. Fetch current progress
     Map<String, dynamic>? currentSp;
@@ -395,32 +854,74 @@ class SupabaseService {
     );
     currentMap[level.toString()] = 'completed';
     if (!isGameComplete) {
-      currentMap[nextLevel.toString()] = 'unlocked';
+      // Never downgrade an already-completed next node when replaying an
+      // earlier level (replaying Level 3 must not re-"unlock" a done Level 4).
+      if (currentMap[nextLevel.toString()] != 'completed') {
+        currentMap[nextLevel.toString()] = 'unlocked';
+      }
     }
 
     final currentHistory =
         (currentSp?['question_history'] as List?)?.cast<String>() ?? [];
     final updatedHistory = {...currentHistory, ...usedQuestions}.toList();
 
-    final xpGain = isChallenge ? 100 : 50;
-    final coinGain = isChallenge ? 20 : 10;
+    // Preserve the documented reward amounts; grant 0 on an already-rewarded
+    // replay so practice never inflates XP/coins, and never move current_level
+    // backwards when replaying an earlier level. All decisions are delegated to
+    // the pure, unit-tested [planLevelCompletionRewards] helper.
     final currentXp = (currentSp?['total_xp'] as int?) ?? 0;
     final currentCoins = (currentSp?['coins'] as int?) ?? 0;
+    final earnedStars = accuracyPct >= 90
+        ? 3
+        : (accuracyPct >= 60 ? 2 : (accuracyPct > 0 ? 1 : 0));
+    final rewardPlan = planLevelCompletionRewards(
+      alreadyRewarded: alreadyRewarded,
+      isChallenge: isChallenge,
+      nextLevel: nextLevel,
+      previousCurrentLevel: (currentSp?['current_level'] as int?) ?? 0,
+      stars: earnedStars,
+    );
+    final xpGain = rewardPlan.xpGain;
+    final coinGain = rewardPlan.coinGain;
+    final newCurrentLevel = rewardPlan.currentLevel;
+
+    // Resolve canonical Daily Streak on qualifying learning activity (passed level).
+    // Uses Asia/Manila (UTC+8) calendar days.
+    final currentStreak = (currentSp?['streak_days'] as int?) ??
+        (((currentSp?['raw_data'] as Map?)?['stats'] as Map?)?['streakDays'] as int?) ??
+        0;
+    final rawLastActive = ((currentSp?['raw_data'] as Map?)?['stats'] as Map?)?['lastActiveDate'] ??
+        currentSp?['updated_at'];
+    final lastActiveDate = rawLastActive != null ? DateTime.tryParse(rawLastActive.toString()) : null;
+    final newStreak = RewardsService().resolveStreak(
+      currentStreak: currentStreak,
+      lastActiveDate: lastActiveDate,
+      now: DateTime.tryParse(now),
+    );
 
     final rawData = Map<String, dynamic>.from(currentSp?['raw_data'] as Map? ?? {});
-    rawData['currentLevel'] = nextLevel;
+    rawData['currentLevel'] = newCurrentLevel;
     rawData['levelStatusMap'] = currentMap;
     rawData['totalXp'] = currentXp + xpGain;
     rawData['coins'] = currentCoins + coinGain;
+    rawData['streakDays'] = newStreak;
+    rawData['stats'] = {
+      ...?((currentSp?['raw_data'] as Map?)?['stats'] as Map?),
+      'totalXp': currentXp + xpGain,
+      'coins': currentCoins + coinGain,
+      'streakDays': newStreak,
+      'lastActiveDate': now,
+    };
     rawData['updatedAt'] = now;
 
     // 2. Update student_progress
     final spPayload = {
-      'current_level': nextLevel,
+      'current_level': newCurrentLevel,
       'level_status_map': currentMap,
       'question_history': updatedHistory,
       'total_xp': currentXp + xpGain,
       'coins': currentCoins + coinGain,
+      'streak_days': newStreak,
       'remediation_active': false,
       'raw_data': rawData,
       'updated_at': now,
@@ -438,19 +939,45 @@ class SupabaseService {
       }
     }
 
-    // 3. Upsert level_progress
+    // 3. Upsert level_progress, preserving the HIGHEST best_score and stars so a
+    //    lower practice replay can never overwrite a better prior result.
+    // Persisted-star tracking for the actual outcome. These reflect ONLY what is
+    // successfully written to `level_progress`; a swallowed failure must not be
+    // reported as saved stars, so the UI never animates an unsaved gain.
+    int previousSavedStars = 0;
+    int newSavedStars = 0;
+    bool levelProgressPersisted = false;
     if (resolvedLrn.isNotEmpty) {
       try {
+        final existingLp = await client
+            .from('level_progress')
+            .select('best_score, stars')
+            .eq('student_lrn', resolvedLrn)
+            .eq('level', level)
+            .maybeSingle();
+        previousSavedStars = (existingLp?['stars'] as int?) ?? 0;
+        final merged = mergeLevelProgress(
+          previousBestScore: (existingLp?['best_score'] as int?) ?? 0,
+          previousStars: previousSavedStars,
+          score: score,
+          accuracyPct: accuracyPct,
+        );
         await client.from('level_progress').upsert({
           'student_lrn': resolvedLrn,
           'level': level,
           'status': 'completed',
-          'stars': accuracyPct >= 90 ? 3 : (accuracyPct >= 60 ? 2 : 1),
-          'best_score': score,
+          'stars': merged.stars,
+          'best_score': merged.bestScore,
           'updated_at': now,
         });
+        newSavedStars = merged.stars;
+        levelProgressPersisted = true;
       } catch (e) {
         debugPrint('[SupabaseService] level_progress upsert warning: $e');
+        // Existing behaviour preserved: the failure is swallowed. Do NOT claim
+        // the star write persisted — report no change so the UI must not
+        // animate a star gain that was never actually saved.
+        newSavedStars = previousSavedStars;
       }
     }
 
@@ -482,7 +1009,7 @@ class SupabaseService {
       'accuracy': maxScore > 0 ? score / maxScore : 0.0,
       'xp_awarded': xpGain,
       'coins_awarded': coinGain,
-      'stars': accuracyPct >= 90 ? 3 : (accuracyPct >= 60 ? 2 : 1),
+      'stars': earnedStars,
       'result_data': {
         'studentId': userId,
         'level': level,
@@ -492,6 +1019,9 @@ class SupabaseService {
         'isChallenge': isChallenge,
         'difficulty': difficulty,
         'zone': zone,
+        'scoringMode': ?scoringMode,
+        'attemptNumber': ?attemptNumber,
+        'durationSeconds': ?durationSeconds,
       },
       'created_at': now,
     });
@@ -518,6 +1048,72 @@ class SupabaseService {
           'updated_at': now,
         }).eq('lrn', resolvedLrn);
       } catch (_) {}
+    }
+
+    var starsGain = newSavedStars - previousSavedStars;
+    if (starsGain < 0) starsGain = 0;
+
+    // `saveSucceeded` is true only when the level's `level_progress` row was
+    // actually persisted (stars saved) AND the earlier un-caught writes
+    // (student_progress rewards + student_results audit) completed without
+    // throwing — if any of those threw, this method never reaches this point.
+    return LevelCompletionOutcome(
+      level: level,
+      xpAwarded: xpGain,
+      coinsAwarded: coinGain,
+      totalXpBefore: currentXp,
+      totalXpAfter: currentXp + xpGain,
+      coinsBefore: currentCoins,
+      coinsAfter: currentCoins + coinGain,
+      previousSavedStars: previousSavedStars,
+      newSavedStars: newSavedStars,
+      totalStarsGain: starsGain,
+      wasFirstCompletion: !alreadyRewarded,
+      isChallenge: isChallenge,
+      saveSucceeded: levelProgressPersisted,
+      // Reaching this return means the un-caught student_progress +
+      // student_results writes succeeded; a thrown required write would have
+      // exited earlier without producing any outcome, so this is only true for a
+      // genuinely persisted reward ledger.
+      rewardsPersisted: true,
+      starsPersisted: levelProgressPersisted,
+      durationSeconds: durationSeconds,
+    );
+  }
+
+  /// Returns `true` when [userId] already has a successfully-rewarded gameplay
+  /// result for [level]: a `student_results` row with `assessment_type`
+  /// `LEVEL_PRACTICE`/`LEVEL_CHALLENGE` and `xp_awarded > 0`. RMA placement
+  /// (DIAGNOSTIC) and remediation alerts (REMEDIATION_SUPPORT_NEEDED, no
+  /// `xp_awarded`) never write such rows, so placement-skipped levels correctly
+  /// report `false` and remain eligible for their first real reward.
+  ///
+  /// Throws [StateError] when the ledger cannot be reliably read (query error),
+  /// so [saveLevelCompletion] never silently assumes a first completion and
+  /// re-awards on a transient fault. No writes have happened yet at the call
+  /// site, so the student's completion simply is not persisted and can be
+  /// retried (a recoverable error).
+  Future<bool> _hasPriorRewardedCompletion(
+    SupabaseClient client, {
+    required String userId,
+    required int level,
+  }) async {
+    try {
+      final rows = await client
+          .from('student_results')
+          .select('id')
+          .eq('student_uid', userId)
+          .eq('level_number', level)
+          .inFilter(
+            'assessment_type',
+            const ['LEVEL_PRACTICE', 'LEVEL_CHALLENGE'],
+          )
+          .gt('xp_awarded', 0)
+          .limit(1);
+      return rows.isNotEmpty;
+    } catch (e) {
+      debugPrint('[SupabaseService] rewarded-completion lookup failed: $e');
+      throw StateError('Could not verify prior level rewards; please retry.');
     }
   }
 
@@ -998,6 +1594,47 @@ class SupabaseService {
     } catch (e) {
       debugPrint('[SupabaseService] hasCompletedDailyChallenge error: $e');
       return false;
+    }
+  }
+
+  /// Reads the most recent Daily Challenge completion strictly BEFORE
+  /// [todayKey] (`yyyy-MM-dd`) from `student_daily_progress`, the table written
+  /// only when a Daily Challenge is completed. Because gameplay never writes
+  /// here, this is the authoritative Daily-Challenge-only streak anchor and
+  /// cannot be inflated by Adventure Map activity.
+  ///
+  /// Returns a typed [DailyChallengeAnchor] so callers can distinguish a genuine
+  /// first-ever completion ([DailyChallengeAnchorSource.none]) from an
+  /// inconclusive read ([DailyChallengeAnchorSource.unreadable]) and avoid
+  /// silently downgrading a known streak on transient failures.
+  Future<DailyChallengeAnchor> fetchLastDailyChallengeDate({
+    required String userId,
+    required String todayKey,
+  }) async {
+    final client = _safeClient;
+    if (client == null || userId.isEmpty) {
+      return const DailyChallengeAnchor(DailyChallengeAnchorSource.unreadable);
+    }
+    try {
+      final rows = await client
+          .from('student_daily_progress')
+          .select('date')
+          .eq('user_id', userId)
+          .lt('date', todayKey)
+          .order('date', ascending: false)
+          .limit(1);
+      if (rows.isEmpty) {
+        return const DailyChallengeAnchor(DailyChallengeAnchorSource.none);
+      }
+      final raw = rows.first['date']?.toString();
+      final parsed = raw == null ? null : DateTime.tryParse(raw);
+      if (parsed == null) {
+        return const DailyChallengeAnchor(DailyChallengeAnchorSource.none);
+      }
+      return DailyChallengeAnchor(DailyChallengeAnchorSource.found, parsed);
+    } catch (e) {
+      debugPrint('[SupabaseService] fetchLastDailyChallengeDate error: $e');
+      return const DailyChallengeAnchor(DailyChallengeAnchorSource.unreadable);
     }
   }
 

@@ -137,6 +137,7 @@ void main() {
                         level: 30,
                         coins: 120,
                         xp: 340,
+                        stars: 45,
                       ),
                     Expanded(child: child),
                   ],

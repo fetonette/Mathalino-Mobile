@@ -239,35 +239,32 @@ class LessonSequence {
   });
 
   factory LessonSequence.fromJson(Map<String, dynamic> json) {
+    List<String> parseStringList(dynamic val) {
+      if (val is List) {
+        return val.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      }
+      if (val is String && val.trim().isNotEmpty) {
+        return [val.trim()];
+      }
+      return const [];
+    }
+
     return LessonSequence(
-      objectives: (json['objectives'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
-      introduction: json['introduction'] as String? ?? '',
-      explanation: (json['explanation'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
-      keyConcepts: (json['keyConcepts'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
+      objectives: parseStringList(json['objectives']),
+      introduction: json['introduction']?.toString() ?? '',
+      explanation: parseStringList(json['explanation']),
+      keyConcepts: parseStringList(json['keyConcepts']),
       workedExamples: (json['workedExamples'] as List<dynamic>? ?? [])
-          .map((e) => WorkedExample.fromJson(e as Map<String, dynamic>))
+          .map((e) => WorkedExample.fromJson(e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map)))
           .toList(),
       guidedPractice: (json['guidedPractice'] as List<dynamic>? ?? [])
-          .map((e) => GuidedPracticeItem.fromJson(e as Map<String, dynamic>))
+          .map((e) => GuidedPracticeItem.fromJson(e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map)))
           .toList(),
-      independentPractice:
-          (json['independentPractice'] as List<dynamic>? ?? [])
-              .map((e) => e.toString())
-              .toList(),
-      realLifeApplication: json['realLifeApplication'] as String? ?? '',
-      checkUnderstanding: (json['checkUnderstanding'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
-      summary: json['summary'] as String? ?? '',
-      challenge: (json['challenge'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
+      independentPractice: parseStringList(json['independentPractice']),
+      realLifeApplication: json['realLifeApplication']?.toString() ?? '',
+      checkUnderstanding: parseStringList(json['checkUnderstanding']),
+      summary: json['summary']?.toString() ?? '',
+      challenge: parseStringList(json['challenge']),
     );
   }
 
@@ -330,8 +327,8 @@ class WorkedExample {
 
   factory WorkedExample.fromJson(Map<String, dynamic> json) {
     return WorkedExample(
-      problem: json['problem'] as String? ?? '',
-      solution: json['solution'] as String? ?? '',
+      problem: json['problem']?.toString() ?? '',
+      solution: json['solution']?.toString() ?? '',
     );
   }
 
@@ -355,8 +352,8 @@ class GuidedPracticeItem {
 
   factory GuidedPracticeItem.fromJson(Map<String, dynamic> json) {
     return GuidedPracticeItem(
-      problem: json['problem'] as String? ?? '',
-      hint: json['hint'] as String? ?? '',
+      problem: json['problem']?.toString() ?? '',
+      hint: json['hint']?.toString() ?? '',
     );
   }
 
@@ -367,3 +364,278 @@ class GuidedPracticeItem {
     };
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PHASE 7: DYNAMIC TEACHER-PUBLISHED CONTENT DTOs
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Represents a teacher-created mathematics module published to students.
+class TeacherPublishedModule {
+  final String id;
+  final String teacherId;
+  final String title;
+  final String description;
+  final String gradeLevel;
+  final int displayOrder;
+  final String status;
+  final int publishedLessonCount;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const TeacherPublishedModule({
+    required this.id,
+    required this.teacherId,
+    required this.title,
+    this.description = '',
+    this.gradeLevel = '',
+    this.displayOrder = 0,
+    this.status = 'published',
+    this.publishedLessonCount = 0,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory TeacherPublishedModule.fromSupabase(
+    Map<String, dynamic> json, {
+    int publishedLessonCount = 0,
+  }) {
+    // If the join returned math_materials, calculate count automatically if not passed
+    var calculatedCount = publishedLessonCount;
+    if (json['math_materials'] is List) {
+      final materialsList = json['math_materials'] as List<dynamic>;
+      calculatedCount = materialsList.where((m) {
+        if (m is! Map) return false;
+        final rev = (m['review_status'] ?? '').toString().toLowerCase();
+        final stat = (m['status'] ?? '').toString();
+        return rev == 'published' && (stat == 'Active' || stat == 'published');
+      }).length;
+    }
+
+    return TeacherPublishedModule(
+      id: json['id']?.toString() ?? '',
+      teacherId: json['teacher_id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled Module',
+      description: json['description']?.toString() ?? '',
+      gradeLevel: json['grade_level']?.toString() ?? '',
+      displayOrder: (json['display_order'] as num?)?.toInt() ?? 0,
+      status: json['status']?.toString() ?? 'published',
+      publishedLessonCount: calculatedCount,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null,
+    );
+  }
+
+  /// Converts to legacy [LearnModule] for backward compatibility with existing widgets.
+  LearnModule toLegacyLearnModule({List<LearnTopic> topics = const []}) {
+    return LearnModule(
+      id: id,
+      name: title,
+      description: description,
+      note: gradeLevel.isNotEmpty ? gradeLevel : null,
+      topics: topics,
+    );
+  }
+}
+
+/// Lightweight summary of a published lesson belonging to a module.
+class PublishedLessonSummary {
+  final String id;
+  final String moduleId;
+  final String teacherId;
+  final String title;
+  final String gradeLevel;
+  final String status;
+  final String reviewStatus;
+  final DateTime? createdAt;
+
+  const PublishedLessonSummary({
+    required this.id,
+    required this.moduleId,
+    required this.teacherId,
+    required this.title,
+    this.gradeLevel = '',
+    this.status = 'Active',
+    this.reviewStatus = 'published',
+    this.createdAt,
+  });
+
+  factory PublishedLessonSummary.fromSupabase(Map<String, dynamic> json) {
+    return PublishedLessonSummary(
+      id: json['id']?.toString() ?? '',
+      moduleId: json['module_id']?.toString() ?? '',
+      teacherId: json['teacher_id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled Lesson',
+      gradeLevel: json['grade_level']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'Active',
+      reviewStatus: json['review_status']?.toString() ?? 'published',
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+    );
+  }
+}
+
+/// Detailed published lesson with the full 11-part [LessonSequence].
+/// Note: Practice questions with answers are NEVER included in this student model.
+class PublishedLessonDetail {
+  final String id;
+  final String moduleId;
+  final String teacherId;
+  final String title;
+  final String gradeLevel;
+  final LessonSequence lessonSequence;
+  final String status;
+  final String reviewStatus;
+  final DateTime? createdAt;
+  final DateTime? publishedAt;
+
+  const PublishedLessonDetail({
+    required this.id,
+    required this.moduleId,
+    required this.teacherId,
+    required this.title,
+    this.gradeLevel = '',
+    required this.lessonSequence,
+    this.status = 'Active',
+    this.reviewStatus = 'published',
+    this.createdAt,
+    this.publishedAt,
+  });
+
+  factory PublishedLessonDetail.fromSupabase(Map<String, dynamic> json) {
+    final lessonJson = json['lesson_data'] is Map<String, dynamic>
+        ? json['lesson_data'] as Map<String, dynamic>
+        : (json['lesson_data'] is Map
+            ? Map<String, dynamic>.from(json['lesson_data'] as Map)
+            : <String, dynamic>{});
+
+    return PublishedLessonDetail(
+      id: json['id']?.toString() ?? '',
+      moduleId: json['module_id']?.toString() ?? '',
+      teacherId: json['teacher_id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled Lesson',
+      gradeLevel: json['grade_level']?.toString() ?? '',
+      lessonSequence: LessonSequence.fromJson(lessonJson),
+      status: json['status']?.toString() ?? 'Active',
+      reviewStatus: json['review_status']?.toString() ?? 'published',
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      publishedAt: json['published_at'] != null ? DateTime.tryParse(json['published_at'].toString()) : null,
+    );
+  }
+
+  /// Converts into a [LearnTopic] so existing LessonDetailScreen renders without rewriting.
+  LearnTopic toLearnTopic({String moduleName = ''}) {
+    return LearnTopic(
+      id: id,
+      gradeLevel: int.tryParse(gradeLevel.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1,
+      module: moduleName.isNotEmpty ? moduleName : 'Teacher Practice',
+      title: title,
+      rmaCompetencyCodes: const [],
+      rmaSource: 'Teacher-Created Practice Lesson',
+      moduleMappingNote: null,
+      lessonSequence: lessonSequence,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 8: INTERACTIVE STUDENT PRACTICE MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Represents a single student-safe multiple choice practice question.
+///
+/// Strictly omits `correctAnswer`, `explanation`, and teacher notes to prevent
+/// any answer key leakage before or during interactive practice attempts.
+class StudentPracticeQuestion {
+  final String id;
+  final String question;
+  final Map<String, String> options;
+  final String difficulty;
+  final String? hint;
+  final String lessonId;
+  final String? lessonVersionId;
+
+  const StudentPracticeQuestion({
+    required this.id,
+    required this.question,
+    required this.options,
+    this.difficulty = 'standard',
+    this.hint,
+    required this.lessonId,
+    this.lessonVersionId,
+  });
+
+  factory StudentPracticeQuestion.fromJson(Map<String, dynamic> json, {String? defaultLessonId}) {
+    final rawOptions = json['options'];
+    final Map<String, String> parsedOptions = {};
+
+    if (rawOptions is Map) {
+      rawOptions.forEach((k, v) {
+        if (k != null && v != null) {
+          parsedOptions[k.toString().trim().toUpperCase()] = v.toString().trim();
+        }
+      });
+    }
+
+    return StudentPracticeQuestion(
+      id: json['id']?.toString() ?? '',
+      question: json['question']?.toString() ?? '',
+      options: parsedOptions,
+      difficulty: json['difficulty']?.toString().toLowerCase() ?? 'standard',
+      hint: json['hint']?.toString(),
+      lessonId: json['lesson_id']?.toString() ?? defaultLessonId ?? '',
+      lessonVersionId: json['lesson_version_id']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'question': question,
+      'options': options,
+      'difficulty': difficulty,
+      if (hint != null) 'hint': hint,
+      'lesson_id': lessonId,
+      if (lessonVersionId != null) 'lesson_version_id': lessonVersionId,
+    };
+  }
+}
+
+/// Represents the evaluated response from the secure `check_practice_answer` server RPC.
+class StudentPracticeAnswerResult {
+  final bool isCorrect;
+  final String feedback;
+  final String? explanation;
+  final String questionId;
+  final String? correctOption;
+
+  const StudentPracticeAnswerResult({
+    required this.isCorrect,
+    required this.feedback,
+    this.explanation,
+    required this.questionId,
+    this.correctOption,
+  });
+
+  factory StudentPracticeAnswerResult.fromJson(Map<String, dynamic> json) {
+    return StudentPracticeAnswerResult(
+      isCorrect: json['is_correct'] == true,
+      feedback: json['feedback']?.toString() ??
+          (json['is_correct'] == true
+              ? 'Great job! That is correct!'
+              : 'Good try! Let’s work through it.'),
+      explanation: json['explanation']?.toString(),
+      questionId: json['question_id']?.toString() ?? '',
+      correctOption: json['correct_option']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'is_correct': isCorrect,
+      'feedback': feedback,
+      if (explanation != null) 'explanation': explanation,
+      'question_id': questionId,
+      if (correctOption != null) 'correct_option': correctOption,
+    };
+  }
+}
+

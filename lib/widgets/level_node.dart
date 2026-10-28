@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/mathalino_tokens.dart';
 import '../providers/level_progress_provider.dart';
 import 'home/home_strings.dart';
+import 'star_row.dart';
 
 /// Visual kind of a node on the level map.
 enum LevelNodeKind { completed, current, unlocked, locked }
@@ -41,6 +42,7 @@ class LevelNode extends StatelessWidget {
   final bool isHard;
   final bool isBoss;
   final bool isCurrent;
+  final int? stars;
   final VoidCallback onTap;
 
   const LevelNode({
@@ -50,10 +52,21 @@ class LevelNode extends StatelessWidget {
     this.isHard = false,
     this.isBoss = false,
     this.isCurrent = false,
+    this.stars,
     required this.onTap,
   });
 
   LevelNodeKind get kind => levelNodeKindFor(state, isCurrent);
+
+  /// A star count is shown for a COMPLETED node.
+  /// 0 stars displays three empty slots; 1–3 stars displays earned stars.
+  int? get _displayableStars {
+    if (kind == LevelNodeKind.completed) {
+      final s = stars;
+      return (s ?? 0).clamp(0, 3);
+    }
+    return null;
+  }
 
   void _handleTap(BuildContext context) {
     if (state != LevelState.locked) {
@@ -85,7 +98,8 @@ class LevelNode extends StatelessWidget {
   String get _semanticLabel {
     switch (kind) {
       case LevelNodeKind.completed:
-        return HomeStrings.nodeCompleted(levelNumber);
+        final s = _displayableStars ?? 0;
+        return '${HomeStrings.nodeCompleted(levelNumber)}, $s of 3 stars';
       case LevelNodeKind.current:
         return HomeStrings.nodeCurrent(levelNumber);
       case LevelNodeKind.unlocked:
@@ -101,7 +115,7 @@ class LevelNode extends StatelessWidget {
     Widget visual;
     switch (k) {
       case LevelNodeKind.completed:
-        visual = _CompletedNode(level: levelNumber);
+        visual = _CompletedNode(level: levelNumber, stars: _displayableStars);
       case LevelNodeKind.current:
         visual = _CurrentNode(level: levelNumber);
       case LevelNodeKind.unlocked:
@@ -134,16 +148,28 @@ class LevelNode extends StatelessWidget {
 
 class _CompletedNode extends StatelessWidget {
   final int level;
-  const _CompletedNode({required this.level});
+  final int? stars;
+  const _CompletedNode({required this.level, this.stars});
 
   @override
   Widget build(BuildContext context) {
     const d = 60.0;
+    final earned = (stars ?? 0).clamp(0, 3);
+
+    // Layout positions:
+    // 1. Green circle: 0 .. d (60px)
+    // 2. Stars: directly below circle with 4px vertical gap: top = d + 4
+    // 3. Level number: directly below stars with 4px vertical gap: top = d + 4 + starRowHeight + 4
+    const starsTop = d + AppTokens.starVerticalGap;
+    const numberTop =
+        starsTop + AppTokens.starRowHeight + AppTokens.starVerticalGap;
+
     return SizedBox(
       width: d,
       height: d,
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
         children: [
           Container(
             width: d,
@@ -157,9 +183,22 @@ class _CompletedNode extends StatelessWidget {
             child: const Icon(Icons.check, color: Colors.white, size: 32),
           ),
           Positioned(
-            top: d + 4,
-            left: -12,
-            right: -12,
+            top: starsTop,
+            left: (d - AppTokens.starRowWidth) / 2,
+            width: AppTokens.starRowWidth,
+            height: AppTokens.starRowHeight,
+            child: Center(
+              child: StarRow(
+                stars: earned,
+                size: AppTokens.starSize,
+                animateNew: false,
+              ),
+            ),
+          ),
+          Positioned(
+            top: numberTop,
+            left: -20,
+            right: -20,
             child: Text(
               '$level',
               textAlign: TextAlign.center,

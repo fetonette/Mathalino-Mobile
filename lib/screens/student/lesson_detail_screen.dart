@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/learn_content_models.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/learn_provider.dart';
+import 'practice_screen.dart';
 
 /// Screen that renders a single textbook lesson following the 11-part
-/// instructional sequence specified in LEARN_CONTENT_STRUCTURE.md (§2 & §8.4).
+/// instructional sequence specified in LEARN_CONTENT_STRUCTURE.md (§2 & §8.4),
+/// supporting dynamic Supabase published lessons and legacy topics.
 class LessonDetailScreen extends StatefulWidget {
-  final LearnTopic topic;
+  final LearnTopic? topic;
+  final String? lessonId;
+  final String? lessonTitle;
+  final String? gradeLevel;
+  final String? moduleTitle;
 
   const LessonDetailScreen({
     super.key,
-    required this.topic,
+    this.topic,
+    this.lessonId,
+    this.lessonTitle,
+    this.gradeLevel,
+    this.moduleTitle,
   });
 
   @override
@@ -19,10 +31,177 @@ class LessonDetailScreen extends StatefulWidget {
 class _LessonDetailScreenState extends State<LessonDetailScreen> {
   // Set of indices for revealed guided practice hints
   final Set<int> _revealedHints = {};
+  PublishedLessonDetail? _fetchedDetail;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.lessonId != null && widget.topic == null) {
+      _fetchLesson();
+    }
+  }
+
+  Future<void> _fetchLesson() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final detail = await context
+          .read<LearnProvider>()
+          .fetchLessonDetail(widget.lessonId!);
+      if (mounted) {
+        setState(() {
+          _fetchedDetail = detail;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[LessonDetailScreen] Fetch error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = e
+              .toString()
+              .replaceFirst(RegExp(r'^Exception:\s*'), '')
+              .replaceFirst(RegExp(r'^StateError:\s*'), '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final topic = widget.topic;
+    final titleText = widget.topic?.title ??
+        _fetchedDetail?.title ??
+        widget.lessonTitle ??
+        'Lesson Detail';
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1E293B),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            titleText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.accent,
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1E293B),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            titleText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.lock_clock_rounded,
+                  color: Color(0xFFFBBF24),
+                  size: 52,
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Lesson Unavailable',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 14.5,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: const Text('Back to Lessons'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final topic = widget.topic ??
+        _fetchedDetail?.toLearnTopic(moduleName: widget.moduleTitle ?? '');
+    if (topic == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1E293B),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'Lesson content could not be loaded.',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     final seq = topic.lessonSequence;
 
     return Scaffold(
@@ -657,9 +836,154 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                 }),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // ── 12. Practice Section (Interactive Practice Entry Point) ────────
+            _buildPracticeCard(topic.title),
             const SizedBox(height: 30),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPracticeCard(String titleText) {
+    final effectiveLessonId = widget.lessonId ?? _fetchedDetail?.id ?? widget.topic?.id ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+            offset: const Offset(0, 4),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.quiz_rounded,
+                  color: Color(0xFF38BDF8),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Practice Exercises',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '5 Interactive Practice Questions',
+                      style: TextStyle(
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                ),
+                child: const Text(
+                  'Interactive',
+                  style: TextStyle(
+                    color: Color(0xFF34D399),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Test your understanding with 5 teacher-created practice questions. Includes step-by-step hints, immediate feedback, and unlimited retries!',
+            style: TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 13.5,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: const Color(0xFF0F172A),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              onPressed: () {
+                if (effectiveLessonId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Practice is not available for this preview lesson.'),
+                    ),
+                  );
+                  return;
+                }
+                final learnProvider = context.read<LearnProvider>();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider<LearnProvider>.value(
+                      value: learnProvider,
+                      child: PracticeScreen(
+                        lessonId: effectiveLessonId,
+                        lessonTitle: titleText,
+                        moduleTitle: widget.moduleTitle ?? 'Practice Module',
+                      ),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.play_circle_filled_rounded, size: 22),
+              label: const Text(
+                'Start Practice',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

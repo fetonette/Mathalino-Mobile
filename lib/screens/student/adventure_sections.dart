@@ -6,7 +6,9 @@ import '../../core/services/auth_service.dart';
 import '../../core/theme/mathalino_tokens.dart';
 import '../../providers/learn_provider.dart';
 import '../../providers/level_progress_provider.dart';
+import '../../core/services/avatar_shop_service.dart';
 import '../../widgets/logout_dialog.dart';
+import 'avatar_shop_screen.dart';
 import 'module_lessons_screen.dart';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -25,368 +27,288 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final profile = context.read<AuthService>().studentProfile;
-      context.read<LearnProvider>().loadForStudent(profile);
+      context.read<LearnProvider>().loadPublishedModules();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile = context.watch<AuthService>().studentProfile;
     final learn = context.watch<LearnProvider>();
-    final content = learn.currentGradeContent;
-    final gradeLevel = content?.gradeLevel ?? (profile?.gradeLevel ?? 1);
+    final modules = learn.publishedModules;
 
-    // Auto-trigger load if profile loaded later
-    if (content == null && !learn.isLoading && profile != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<LearnProvider>().loadForStudent(profile);
-      });
-    }
-
-    const moduleDefs = [
-      (
-        key: 'number_sense',
-        title: 'Number Sense',
-        description: 'Build confidence with numbers and place value.',
-        isLocked: true,
-      ),
-      (
-        key: 'operations',
-        title: 'Operations',
-        description:
-            'Practice addition, subtraction, multiplication, and division.',
-        isLocked: false,
-      ),
-      (
-        key: 'fractions',
-        title: 'Fractions',
-        description: 'Explore parts, wholes, and equivalent fractions.',
-        isLocked: false,
-      ),
-      (
-        key: 'geometry',
-        title: 'Geometry',
-        description: 'Learn shapes, space, measurement, and patterns.',
-        isLocked: false,
-      ),
-    ];
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Title row with faded mascot decoration
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Faded pencil mascot at top right (78x114, opacity 0.35, pointer-events none)
-                  Positioned(
-                    top: -6,
-                    right: 4,
-                    child: IgnorePointer(
-                      child: Opacity(
-                        opacity: 0.35,
-                        child: Image.asset(
-                          'assets/mascots/mascot_pencil.png',
-                          width: 78,
-                          height: 114,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const SizedBox(
+    return RefreshIndicator(
+      onRefresh: () => learn.refreshPublishedModules(),
+      color: AppTokens.primaryIndigo,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Title row with faded mascot decoration
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Faded pencil mascot at top right (78x114, opacity 0.35, pointer-events none)
+                    Positioned(
+                      top: -6,
+                      right: 4,
+                      child: IgnorePointer(
+                        child: Opacity(
+                          opacity: 0.35,
+                          child: Image.asset(
+                            'assets/mascots/mascot_pencil.png',
                             width: 78,
                             height: 114,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Title + Subtitle
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.menu_book_rounded,
-                            color: Color(0xFFD97706),
-                            size: 34,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Learn',
-                            style: AppTokens.baloo2(
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                              color: AppTokens.headingIndigo,
-                              height: 1.1,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const SizedBox(
+                              width: 78,
+                              height: 114,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 230),
-                        child: Text(
-                          'Choose a module and keep building your math skills.',
-                          style: AppTokens.nunito(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppTokens.secondaryText,
-                            height: 1.25,
-                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Grade 6 unsupported banner (§8.5)
-              if (content != null && !content.isSupported) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppTokens.accentOrange.withValues(alpha: 0.4),
-                      width: 2,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        color: Color(0xFFD97706),
-                        size: 24,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+
+                    // Title + Subtitle
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              'Grade 6 Content Coming Soon',
-                              style: AppTokens.baloo2(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppTokens.bodyText,
-                              ),
+                            const Icon(
+                              Icons.menu_book_rounded,
+                              color: Color(0xFFD97706),
+                              size: 34,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(width: 10),
                             Text(
-                              content.note ??
-                                  'Grade 6 assessment-mapped lessons are being prepared according to the RMA instrument.',
-                              style: AppTokens.nunito(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTokens.secondaryText,
-                                height: 1.3,
+                              'Learn',
+                              style: AppTokens.baloo2(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800,
+                                color: AppTokens.headingIndigo,
+                                height: 1.1,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Loading & Error states
-              if (learn.isLoading && content == null) ...[
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: CircularProgressIndicator(
-                      color: AppTokens.primaryIndigo,
-                    ),
-                  ),
-                ),
-              ] else if (learn.errorMessage != null && content == null) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFF87171),
-                      width: 2,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        learn.errorMessage!,
-                        style: AppTokens.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF991B1B),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => learn.loadForStudent(profile),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTokens.primaryIndigo,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 260),
+                          child: Text(
+                            'Choose a module and keep building your math skills.',
+                            style: AppTokens.nunito(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTokens.secondaryText,
+                              height: 1.25,
+                            ),
                           ),
                         ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ] else ...[
-                // Module cards vertical list
-                for (var i = 0; i < moduleDefs.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 16),
-                  _buildModuleCard(
-                    context: context,
-                    def: moduleDefs[i],
-                    content: content,
-                    gradeLevel: gradeLevel,
+                const SizedBox(height: 20),
+
+                // ── Loading State ───────────────────────────────────────────
+                if (learn.isLoading && modules.isEmpty) ...[
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 60),
+                      child: CircularProgressIndicator(
+                        color: AppTokens.primaryIndigo,
+                      ),
+                    ),
                   ),
+                ]
+                // ── Recoverable Error State (Distinguished from empty) ────────
+                else if (learn.errorMessage != null && modules.isEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFFF87171),
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.cloud_off_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 40,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          learn.errorMessage!,
+                          style: AppTokens.nunito(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF991B1B),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => learn.loadPublishedModules(force: true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTokens.primaryIndigo,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]
+                // ── Empty State: Exact required wording ───────────────────────
+                else if (modules.isEmpty) ...[
+                  _buildEmptyState(context, learn),
+                ]
+                // ── Published Teacher Modules List ───────────────────────────
+                else ...[
+                  for (var i = 0; i < modules.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 16),
+                    _buildDynamicModuleCard(
+                      context: context,
+                      module: modules[i],
+                      index: i,
+                    ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildModuleCard({
+  /// Empty state per Section 7:
+  /// Exactly "Your teacher hasn't added practice lessons yet."
+  Widget _buildEmptyState(BuildContext context, LearnProvider learn) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppTokens.cardBorder, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: AppTokens.cardBorder,
+            offset: Offset(0, 6),
+            blurRadius: 0,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFFEF3C7),
+              border: Border.all(color: const Color(0xFFFDE68A), width: 3),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.menu_book_rounded,
+                color: Color(0xFFD97706),
+                size: 38,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            "Your teacher hasn't added practice lessons yet.",
+            style: AppTokens.baloo2(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppTokens.headingIndigo,
+              height: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back soon! When your teacher publishes new mathematics lessons and practice activities, they will appear here.',
+            style: AppTokens.nunito(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: AppTokens.secondaryText,
+              height: 1.35,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => learn.refreshPublishedModules(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTokens.primaryIndigo,
+              side: const BorderSide(color: AppTokens.primaryIndigo, width: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Check for Updates'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dynamic card for a teacher-published mathematics module
+  Widget _buildDynamicModuleCard({
     required BuildContext context,
-    required ({String key, String title, String description, bool isLocked})
-        def,
-    required GradeLearnContent? content,
-    required int gradeLevel,
+    required TeacherPublishedModule module,
+    required int index,
   }) {
-    final module = content?.getModule(def.key);
-    final topicCount = module?.topics.length ?? 0;
+    // Dynamic palette cycling across Mathalino primary colors
+    final colors = [
+      (bg: AppTokens.primaryIndigo, ring: const Color(0xFF818CF8)),
+      (bg: const Color(0xFF047857), ring: const Color(0xFF6EE7B7)),
+      (bg: const Color(0xFFD97706), ring: const Color(0xFFFDE68A)),
+      (bg: const Color(0xFF7C3AED), ring: const Color(0xFFC4B5FD)),
+      (bg: const Color(0xFF0284C7), ring: const Color(0xFF7DD3FC)),
+    ];
+    final colorPair = colors[index % colors.length];
 
-    final isLocked = def.isLocked;
-
-    // Badge styling & colors per design tokens
-    final Color badgeBg;
-    final Color badgeRing;
-    final Widget badgeIcon;
-
-    switch (def.key) {
-      case 'number_sense':
-        badgeBg = const Color(0xFFE7E5F2);
-        badgeRing = const Color(0xFFC7C3E8);
-        badgeIcon = const Icon(
-          Icons.calculate_outlined,
-          color: Color(0xFF5B5780),
-          size: 26,
-        );
-        break;
-      case 'operations':
-        badgeBg = AppTokens.primaryIndigo;
-        badgeRing = const Color(0xFF818CF8);
-        badgeIcon = Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text(
-              '+ −',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                height: 1.0,
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              '× ÷',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                height: 1.0,
-              ),
-            ),
-          ],
-        );
-        break;
-      case 'fractions':
-        badgeBg = const Color(0xFF047857);
-        badgeRing = const Color(0xFF6EE7B7);
-        badgeIcon = const Icon(
-          Icons.pie_chart_outline_rounded,
-          color: Colors.white,
-          size: 26,
-        );
-        break;
-      case 'geometry':
-        badgeBg = const Color(0xFFD97706);
-        badgeRing = const Color(0xFFFDE68A);
-        badgeIcon = const Icon(
-          Icons.category_outlined,
-          color: Colors.white,
-          size: 26,
-        );
-        break;
-      default:
-        badgeBg = AppTokens.primaryIndigo;
-        badgeRing = const Color(0xFF818CF8);
-        badgeIcon = const Icon(
-          Icons.book_rounded,
-          color: Colors.white,
-          size: 26,
-        );
-    }
-
-    // Card styling
-    final Color cardBg = isLocked ? const Color(0xFFF3F0FA) : Colors.white;
-    final Color cardBorder =
-        isLocked ? const Color(0xFFE0DCEF) : AppTokens.cardBorder;
-    final Color cardShadow =
-        isLocked ? const Color(0xFFE0DCEF) : AppTokens.cardBorder;
-    final Color titleColor =
-        isLocked ? const Color(0xFF5B5780) : AppTokens.bodyText;
-    final Color descColor =
-        isLocked ? const Color(0xFF5B5780) : AppTokens.secondaryText;
-    final Color chevronColor =
-        isLocked ? const Color(0xFF5B5780) : AppTokens.headingIndigo;
-
-    // Chip text
-    final String chipText;
-    final Color chipBg;
-    final Color chipTextColor;
-
-    if (isLocked) {
-      chipText = 'Coming Soon';
-      chipBg = const Color(0xFFE7E5F2);
-      chipTextColor = const Color(0xFF5B5780);
-    } else {
-      chipText = '$topicCount Lesson${topicCount == 1 ? '' : 's'}';
-      chipBg = AppTokens.navActivePill;
-      chipTextColor = AppTokens.headingIndigo;
-    }
+    final icon = _getDynamicModuleIcon(module.title);
+    final count = module.publishedLessonCount;
+    final chipText = '$count Practice Lesson${count == 1 ? '' : 's'}';
 
     return Container(
       constraints: const BoxConstraints(minHeight: 100),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: cardBorder, width: 3),
-        boxShadow: [
+        border: Border.all(color: AppTokens.cardBorder, width: 3),
+        boxShadow: const [
           BoxShadow(
-            color: cardShadow,
-            offset: const Offset(0, 6),
+            color: AppTokens.cardBorder,
+            offset: Offset(0, 6),
             blurRadius: 0,
             spreadRadius: 0,
           ),
@@ -396,37 +318,21 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(25),
-          onTap: isLocked
-              ? null
-              : () {
-                  if (module != null) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ModuleLessonsScreen(
-                          module: module,
-                          gradeLevel: gradeLevel,
-                        ),
-                      ),
-                    );
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ModuleLessonsScreen(
-                          module: LearnModule(
-                            id: 'grade_${gradeLevel}_${def.key}',
-                            name: def.title,
-                            description: def.description,
-                            note: 'Content is being prepared.',
-                            topics: const [],
-                          ),
-                          gradeLevel: gradeLevel,
-                        ),
-                      ),
-                    );
-                  }
-                },
+          onTap: () {
+            final learnProvider = context.read<LearnProvider>();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChangeNotifierProvider<LearnProvider>.value(
+                  value: learnProvider,
+                  child: ModuleLessonsScreen(
+                    publishedModule: module,
+                  ),
+                ),
+              ),
+            );
+          },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
               children: [
                 // 56px round icon badge (4px ring)
@@ -435,10 +341,12 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
                   height: 56,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: badgeBg,
-                    border: Border.all(color: badgeRing, width: 4),
+                    color: colorPair.bg,
+                    border: Border.all(color: colorPair.ring, width: 4),
                   ),
-                  child: Center(child: badgeIcon),
+                  child: Center(
+                    child: Icon(icon, color: Colors.white, size: 26),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 // Title + chip + description
@@ -453,12 +361,12 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
                         runSpacing: 4,
                         children: [
                           Text(
-                            def.title,
+                            module.title,
                             style: AppTokens.baloo2(
-                              fontSize: 21,
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: titleColor,
-                              height: 1.1,
+                              color: AppTokens.bodyText,
+                              height: 1.15,
                             ),
                           ),
                           Container(
@@ -467,7 +375,7 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: chipBg,
+                              color: AppTokens.navActivePill,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -475,32 +383,56 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
                               style: AppTokens.baloo2(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
-                                color: chipTextColor,
+                                color: AppTokens.headingIndigo,
                                 height: 1.0,
                               ),
                             ),
                           ),
+                          if (module.gradeLevel.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Text(
+                                module.gradeLevel,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        module?.description.isNotEmpty == true
-                            ? module!.description
-                            : def.description,
-                        style: AppTokens.nunito(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: descColor,
-                          height: 1.25,
+                      if (module.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          module.description,
+                          style: AppTokens.nunito(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTokens.secondaryText,
+                            height: 1.25,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(
+                const Icon(
                   Icons.chevron_right_rounded,
-                  color: chevronColor,
+                  color: AppTokens.headingIndigo,
                   size: 26,
                 ),
               ],
@@ -509,6 +441,32 @@ class _AdventureLearnViewState extends State<AdventureLearnView> {
         ),
       ),
     );
+  }
+
+  IconData _getDynamicModuleIcon(String title) {
+    final lower = title.toLowerCase();
+    if (lower.contains('multiplic') || lower.contains('times') || lower.contains('product')) {
+      return Icons.close_rounded;
+    }
+    if (lower.contains('add') || lower.contains('sum') || lower.contains('plus')) {
+      return Icons.add_rounded;
+    }
+    if (lower.contains('subtrac') || lower.contains('minus') || lower.contains('differen')) {
+      return Icons.remove_rounded;
+    }
+    if (lower.contains('divis') || lower.contains('divide')) {
+      return Icons.safety_divider_rounded;
+    }
+    if (lower.contains('fraction')) {
+      return Icons.pie_chart_outline_rounded;
+    }
+    if (lower.contains('geometr') || lower.contains('shape')) {
+      return Icons.category_outlined;
+    }
+    if (lower.contains('word') || lower.contains('problem')) {
+      return Icons.psychology_rounded;
+    }
+    return Icons.menu_book_rounded;
   }
 }
 
@@ -959,7 +917,8 @@ class _BarChartPainter extends CustomPainter {
 // ═════════════════════════════════════════════════════════════════════════════
 
 class AdventureProfileView extends StatelessWidget {
-  const AdventureProfileView({super.key});
+  final VoidCallback? onNavigateToShop;
+  const AdventureProfileView({super.key, this.onNavigateToShop});
 
   @override
   Widget build(BuildContext context) {
@@ -972,7 +931,7 @@ class AdventureProfileView extends StatelessWidget {
         : 'fettiz';
     final int currentLevel = levelProvider.currentLevel;
     final int coins = profile?.stats.coins ?? 0;
-    final int xp = profile?.stats.totalXp ?? 0;
+    final int stars = levelProvider.totalStars;
     final String lrn = profile?.lrn.isNotEmpty == true
         ? profile!.lrn
         : '123456789018';
@@ -1030,37 +989,97 @@ class AdventureProfileView extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        // 80px round avatar with 4px indigo border and mascot cropped inside
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFE0E7FF),
-                            border: Border.all(
-                              color: AppTokens.primaryIndigo,
-                              width: 4,
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: Transform.translate(
-                              offset: const Offset(0, 8),
-                              child: Transform.scale(
-                                scale: 1.35,
-                                child: Image.asset(
-                                  'assets/mascots/mascot_thumbs_up.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder:
-                                      (context, error, stackTrace) =>
-                                          const Icon(
-                                    Icons.person_rounded,
-                                    size: 40,
-                                    color: AppTokens.primaryIndigo,
+                        // Tappable 80px round equipped avatar with indigo border and edit badge
+                        AnimatedBuilder(
+                          animation: AvatarShopService.instance,
+                          builder: (context, _) {
+                            final equipped = AvatarShopService.instance.equippedAvatar;
+                            return SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    if (onNavigateToShop != null) {
+                                      onNavigateToShop!();
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const AvatarShopScreen(),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(40),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: const Color(0xFFE0E7FF),
+                                          border: Border.all(
+                                            color: AppTokens.primaryIndigo,
+                                            width: 4,
+                                          ),
+                                        ),
+                                        child: ClipOval(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4),
+                                            child: equipped.isAssetAvailable
+                                                ? Image.asset(
+                                                    equipped.assetPath,
+                                                    width: 72,
+                                                    height: 72,
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (context, error, stackTrace) =>
+                                                        Image.asset(
+                                                      'assets/mascots/mascot_thumbs_up.png',
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stackTrace) => const Icon(
+                                                        Icons.person_rounded,
+                                                        size: 40,
+                                                        color: AppTokens.primaryIndigo,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Image.asset(
+                                                    'assets/mascots/mascot_thumbs_up.png',
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (context, error, stackTrace) => const Icon(
+                                                      Icons.person_rounded,
+                                                      size: 40,
+                                                      color: AppTokens.primaryIndigo,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: AppTokens.primaryIndigo,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.palette_rounded,
+                                            size: 13,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -1099,6 +1118,48 @@ class AdventureProfileView extends StatelessWidget {
                                   color: AppTokens.orangeText,
                                 ),
                               ),
+                              const SizedBox(height: 6),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    if (onNavigateToShop != null) {
+                                      onNavigateToShop!();
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const AvatarShopScreen(),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEF2FF),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.storefront_rounded, size: 14, color: AppTokens.primaryIndigo),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'Avatar Shop',
+                                          style: AppTokens.baloo2(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTokens.primaryIndigo,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1106,7 +1167,7 @@ class AdventureProfileView extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Coins chip (white, orange border) & XP chip (white, indigo border)
+                    // Coins chip (white, orange border) & Stars chip (white, yellow border)
                     Row(
                       children: [
                         Expanded(
@@ -1155,7 +1216,7 @@ class AdventureProfileView extends StatelessWidget {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(21),
                               border: Border.all(
-                                color: AppTokens.primaryIndigo,
+                                color: AppTokens.tileYellow,
                                 width: 2,
                               ),
                             ),
@@ -1164,19 +1225,19 @@ class AdventureProfileView extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.star_rounded,
-                                  color: AppTokens.primaryIndigo,
+                                  color: AppTokens.tileYellow,
                                   size: 22,
                                 ),
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                    '$xp XP',
+                                    '$stars Stars',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: AppTokens.baloo2(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
-                                      color: AppTokens.primaryIndigo,
+                                      color: AppTokens.tileYellow,
                                     ),
                                   ),
                                 ),
@@ -1489,3 +1550,4 @@ class AdventureProfileView extends StatelessWidget {
     );
   }
 }
+

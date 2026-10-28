@@ -18,7 +18,10 @@ import 'screens/landing_page.dart';
 import 'screens/login_page.dart';
 import 'screens/forgot_password_page.dart';
 import 'screens/student/adventure_map_screen.dart';
+import 'screens/student/avatar_shop_screen.dart';
 import 'screens/student/diagnostic_screen.dart';
+import 'core/services/avatar_shop_service.dart';
+import 'widgets/avatar_session_binder.dart';
 import 'screens/student/diagnostic_welcome_screen.dart';
 import 'screens/student/post_assessment_screen.dart';
 import 'screens/student/remediation_screen.dart';
@@ -65,17 +68,22 @@ class MathalinoApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => LearnProvider()),
+        ChangeNotifierProvider.value(value: AvatarShopService.instance),
       ],
       child: MaterialApp(
         title: 'Mathalino - Student App',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        // Binds the saved avatar state to the signed-in student (Batch 10B).
+        builder: (context, child) =>
+            AvatarSessionBinder(child: child ?? const SizedBox.shrink()),
         initialRoute: '/landing',
         routes: {
           '/landing': (context) => const LandingPage(),
           '/login': (context) => const LoginPage(),
           '/forgot_password': (context) => const ForgotPasswordPage(),
           '/adventure_map': (context) => const AdventureMapScreen(),
+          '/avatar_shop': (context) => const AvatarShopScreen(),
           '/diagnostic_welcome': (context) => const DiagnosticWelcomeScreen(),
           '/diagnostic': (context) => const DiagnosticScreen(),
           '/post_assessment': (context) {
